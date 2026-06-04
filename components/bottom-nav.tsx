@@ -6,7 +6,7 @@ import { Home, FolderClosed, Users, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const tabs = [
-  { href: '/', label: 'Home', icon: Home },
+  { href: '/dashboard', label: 'Home', icon: Home },
   { href: '/products', label: 'Products', icon: FolderClosed },
   { href: '/team', label: 'Team', icon: Users },
   { href: '/profile', label: 'Profile', icon: User },
@@ -19,8 +19,7 @@ export function BottomNav() {
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md">
       <div className="mx-auto flex max-w-md items-stretch justify-around px-2 pb-[env(safe-area-inset-bottom)]">
         {tabs.map((tab) => {
-          const active =
-            tab.href === '/' ? pathname === '/' : pathname.startsWith(tab.href)
+          const active = pathname.startsWith(tab.href)
           return (
             <Link
               key={tab.href}

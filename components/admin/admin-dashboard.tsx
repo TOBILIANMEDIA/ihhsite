@@ -1,0 +1,443 @@
+"use client"
+
+import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
+import {
+  Users,
+  Wallet,
+  ArrowUpFromLine,
+  TrendingUp,
+  Check,
+  X,
+  Gift,
+  Plus,
+  Home,
+  Loader2,
+} from "lucide-react"
+import { toast } from "sonner"
+import { formatNaira } from "@/lib/plans"
+import {
+  approveWithdrawal,
+  rejectWithdrawal,
+  adjustBalance,
+  createGiftCode,
+} from "@/app/actions/admin"
+
+type Stats = {
+  users: number
+  totalDeposited: number
+  totalWithdrawn: number
+  totalBalance: number
+  activeInvestments: number
+  pendingWithdrawals: number
+}
+
+type Withdrawal = {
+  id: number
+  amount: string
+  charge: string
+  netAmount: string
+  bankName: string | null
+  accountNumber: string | null
+  accountName: string | null
+  status: string
+  createdAt: Date | string
+  userName: string | null
+  userEmail: string | null
+}
+
+type AdminUser = {
+  id: string
+  name: string | null
+  email: string | null
+  role: string | null
+  balance: string | null
+  totalDeposited: string | null
+}
+
+type GiftCode = {
+  id: number
+  code: string
+  amount: string
+  maxUses: number
+  uses: number
+  active: boolean
+}
+
+type Deposit = {
+  id: number
+  amount: string
+  reference: string
+  status: string
+  createdAt: Date | string
+  userEmail: string | null
+}
+
+const TABS = ["Overview", "Withdrawals", "Users", "Gift Codes", "Deposits"] as const
+type Tab = (typeof TABS)[number]
+
+export function AdminDashboard({
+  stats,
+  withdrawals,
+  users,
+  giftCodes,
+  deposits,
+}: {
+  stats: Stats
+  withdrawals: Withdrawal[]
+  users: AdminUser[]
+  giftCodes: GiftCode[]
+  deposits: Deposit[]
+}) {
+  const [tab, setTab] = useState<Tab>("Overview")
+
+  return (
+    <div className="min-h-screen pb-10">
+      <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-2xl items-center justify-between px-4">
+          <div>
+            <h1 className="text-lg font-bold tracking-tight">Admin Console</h1>
+            <p className="text-xs text-muted-foreground">Income Henryhub</p>
+          </div>
+          <Link
+            href="/dashboard"
+            className="flex h-9 items-center gap-1.5 rounded-full border border-border bg-secondary px-3 text-xs font-semibold text-muted-foreground"
+          >
+            <Home className="h-4 w-4" /> App
+          </Link>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-2xl px-4 py-5">
+        <div className="no-scrollbar mb-5 flex gap-2 overflow-x-auto">
+          {TABS.map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold transition-colors ${
+                tab === t ? "bg-primary text-primary-foreground" : "border border-border bg-card text-muted-foreground"
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+
+        {tab === "Overview" && <Overview stats={stats} />}
+        {tab === "Withdrawals" && <Withdrawals items={withdrawals} />}
+        {tab === "Users" && <UsersTab items={users} />}
+        {tab === "Gift Codes" && <GiftCodesTab items={giftCodes} />}
+        {tab === "Deposits" && <DepositsTab items={deposits} />}
+      </div>
+    </div>
+  )
+}
+
+function Overview({ stats }: { stats: Stats }) {
+  const cards = [
+    { label: "Total Users", value: String(stats.users), icon: Users, tint: "text-primary" },
+    { label: "Total Deposited", value: formatNaira(stats.totalDeposited), icon: Wallet, tint: "text-success" },
+    { label: "Total Withdrawn", value: formatNaira(stats.totalWithdrawn), icon: ArrowUpFromLine, tint: "text-amber-400" },
+    { label: "User Balances", value: formatNaira(stats.totalBalance), icon: Wallet, tint: "text-sky-400" },
+    { label: "Active Investments", value: String(stats.activeInvestments), icon: TrendingUp, tint: "text-success" },
+    { label: "Pending Withdrawals", value: String(stats.pendingWithdrawals), icon: ArrowUpFromLine, tint: "text-destructive" },
+  ]
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {cards.map((c) => (
+        <div key={c.label} className="rounded-2xl border border-border bg-card p-4">
+          <c.icon className={`h-5 w-5 ${c.tint}`} />
+          <p className="mt-2 text-xl font-bold tabular-nums">{c.value}</p>
+          <p className="text-xs text-muted-foreground">{c.label}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function Withdrawals({ items }: { items: Withdrawal[] }) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+
+  function act(id: number, kind: "approve" | "reject") {
+    startTransition(async () => {
+      const res = kind === "approve" ? await approveWithdrawal(id) : await rejectWithdrawal(id)
+      if (res.ok) toast.success(res.message)
+      else toast.error(res.message)
+      router.refresh()
+    })
+  }
+
+  if (items.length === 0) return <Empty label="No withdrawals" />
+
+  return (
+    <div className="flex flex-col gap-3">
+      {items.map((w) => (
+        <div key={w.id} className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="font-bold">{formatNaira(Number(w.amount))}</p>
+              <p className="text-xs text-muted-foreground">
+                Net {formatNaira(Number(w.netAmount))} · Fee {formatNaira(Number(w.charge))}
+              </p>
+            </div>
+            <StatusBadge status={w.status} />
+          </div>
+          <div className="mt-3 rounded-xl bg-secondary/50 p-3 text-xs">
+            <p className="font-semibold">{w.userName ?? "User"} · {w.userEmail}</p>
+            <p className="mt-1 text-muted-foreground">
+              {w.bankName} · {w.accountNumber} · {w.accountName}
+            </p>
+          </div>
+          {w.status === "pending" && (
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={() => act(w.id, "approve")}
+                disabled={pending}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-success py-2.5 text-sm font-bold text-success-foreground disabled:opacity-60"
+              >
+                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Approve
+              </button>
+              <button
+                onClick={() => act(w.id, "reject")}
+                disabled={pending}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-destructive/40 bg-destructive/10 py-2.5 text-sm font-bold text-destructive disabled:opacity-60"
+              >
+                <X className="h-4 w-4" /> Reject
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function UsersTab({ items }: { items: AdminUser[] }) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+  const [editing, setEditing] = useState<string | null>(null)
+  const [amount, setAmount] = useState("")
+  const [note, setNote] = useState("")
+
+  function submit(userId: string) {
+    startTransition(async () => {
+      const res = await adjustBalance(userId, Number(amount), note)
+      if (res.ok) {
+        toast.success(res.message)
+        setEditing(null)
+        setAmount("")
+        setNote("")
+        router.refresh()
+      } else {
+        toast.error(res.message)
+      }
+    })
+  }
+
+  if (items.length === 0) return <Empty label="No users" />
+
+  return (
+    <div className="flex flex-col gap-3">
+      {items.map((u) => (
+        <div key={u.id} className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="truncate font-semibold">
+                {u.name}
+                {u.role === "admin" && (
+                  <span className="ml-2 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
+                    admin
+                  </span>
+                )}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+            </div>
+            <div className="text-right">
+              <p className="font-bold tabular-nums">{formatNaira(Number(u.balance ?? 0))}</p>
+              <p className="text-[10px] text-muted-foreground">
+                dep {formatNaira(Number(u.totalDeposited ?? 0))}
+              </p>
+            </div>
+          </div>
+
+          {editing === u.id ? (
+            <div className="mt-3 flex flex-col gap-2">
+              <input
+                type="number"
+                placeholder="Amount (+ credit / - debit)"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+              />
+              <input
+                placeholder="Note (optional)"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setEditing(null)}
+                  className="flex-1 rounded-xl border border-border bg-secondary py-2.5 text-sm font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => submit(u.id)}
+                  disabled={pending}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+                >
+                  {pending && <Loader2 className="h-4 w-4 animate-spin" />} Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setEditing(u.id)}
+              className="mt-3 w-full rounded-xl border border-border bg-secondary py-2 text-xs font-bold text-muted-foreground"
+            >
+              Adjust Balance
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function GiftCodesTab({ items }: { items: GiftCode[] }) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+  const [form, setForm] = useState({ code: "", amount: "", maxUses: "1" })
+
+  function create() {
+    startTransition(async () => {
+      const res = await createGiftCode({
+        code: form.code,
+        amount: Number(form.amount),
+        maxUses: Number(form.maxUses),
+      })
+      if (res.ok) {
+        toast.success(res.message)
+        setForm({ code: "", amount: "", maxUses: "1" })
+        router.refresh()
+      } else {
+        toast.error(res.message)
+      }
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <p className="mb-3 flex items-center gap-2 text-sm font-bold">
+          <Plus className="h-4 w-4 text-primary" /> Create Gift Code
+        </p>
+        <div className="flex flex-col gap-2">
+          <input
+            placeholder="CODE (e.g. IHH500)"
+            value={form.code}
+            onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
+            className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm font-mono outline-none focus:border-primary"
+          />
+          <div className="flex gap-2">
+            <input
+              type="number"
+              placeholder="Amount ₦"
+              value={form.amount}
+              onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+              className="flex-1 rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+            <input
+              type="number"
+              placeholder="Max uses"
+              value={form.maxUses}
+              onChange={(e) => setForm((f) => ({ ...f, maxUses: e.target.value }))}
+              className="w-28 rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+          </div>
+          <button
+            onClick={create}
+            disabled={pending}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+          >
+            {pending && <Loader2 className="h-4 w-4 animate-spin" />} Create Code
+          </button>
+        </div>
+      </div>
+
+      {items.length === 0 ? (
+        <Empty label="No gift codes yet" />
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+          {items.map((g, i) => (
+            <div
+              key={g.id}
+              className={`flex items-center justify-between p-4 ${i !== items.length - 1 ? "border-b border-border" : ""}`}
+            >
+              <div className="flex items-center gap-3">
+                <Gift className="h-4 w-4 text-pink-400" />
+                <div>
+                  <p className="font-mono font-bold">{g.code}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {g.uses}/{g.maxUses} used
+                  </p>
+                </div>
+              </div>
+              <span className="font-bold text-success tabular-nums">{formatNaira(Number(g.amount))}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DepositsTab({ items }: { items: Deposit[] }) {
+  if (items.length === 0) return <Empty label="No deposits yet" />
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      {items.map((d, i) => (
+        <div
+          key={d.id}
+          className={`flex items-center justify-between p-4 ${i !== items.length - 1 ? "border-b border-border" : ""}`}
+        >
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">{d.userEmail}</p>
+            <p className="truncate font-mono text-[10px] text-muted-foreground">{d.reference}</p>
+          </div>
+          <div className="text-right">
+            <p className="font-bold tabular-nums">{formatNaira(Number(d.amount))}</p>
+            <StatusBadge status={d.status} />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    pending: "bg-amber-400/15 text-amber-400",
+    success: "bg-success/15 text-success",
+    approved: "bg-success/15 text-success",
+    completed: "bg-success/15 text-success",
+    rejected: "bg-destructive/15 text-destructive",
+    failed: "bg-destructive/15 text-destructive",
+  }
+  return (
+    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${map[status] ?? "bg-secondary text-muted-foreground"}`}>
+      {status}
+    </span>
+  )
+}
+
+function Empty({ label }: { label: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card px-4 py-12 text-center text-sm text-muted-foreground">
+      {label}
+    </div>
+  )
+}

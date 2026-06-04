@@ -1,10 +1,33 @@
-'use client'
+"use client"
 
-import Link from 'next/link'
-import { CalendarDays, Coins, TrendingUp } from 'lucide-react'
-import { type Plan, formatNaira } from '@/lib/plans'
+import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import { CalendarDays, Coins, TrendingUp, Loader2 } from "lucide-react"
+import { toast } from "sonner"
+import { type Plan, formatNaira } from "@/lib/plans"
+import { buyPlan } from "@/app/actions/investments"
 
 export function PlanCard({ plan }: { plan: Plan }) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+  const [confirm, setConfirm] = useState(false)
+
+  function handleBuy() {
+    startTransition(async () => {
+      const res = await buyPlan(plan.id)
+      if (res.ok) {
+        toast.success(res.message)
+        setConfirm(false)
+        router.refresh()
+      } else {
+        toast.error(res.message)
+        if (res.message.toLowerCase().includes("insufficient")) {
+          router.push(`/topup?plan=${plan.id}`)
+        }
+      }
+    })
+  }
+
   return (
     <article className="relative overflow-hidden rounded-2xl border border-border bg-card p-4">
       {plan.popular && (
@@ -31,12 +54,32 @@ export function PlanCard({ plan }: { plan: Plan }) {
         <Metric icon={CalendarDays} tint="text-sky-400" label="Duration" value={`${plan.durationDays}d`} />
       </div>
 
-      <Link
-        href={`/topup?plan=${plan.id}`}
-        className="mt-4 flex w-full items-center justify-center rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90"
-      >
-        Buy Now
-      </Link>
+      {confirm ? (
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={() => setConfirm(false)}
+            disabled={pending}
+            className="flex-1 rounded-xl border border-border bg-secondary py-3 text-sm font-bold text-foreground"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleBuy}
+            disabled={pending}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-success py-3 text-sm font-bold text-success-foreground disabled:opacity-60"
+          >
+            {pending && <Loader2 className="h-4 w-4 animate-spin" />}
+            Confirm
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setConfirm(true)}
+          className="mt-4 flex w-full items-center justify-center rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90"
+        >
+          Buy Now
+        </button>
+      )}
     </article>
   )
 }

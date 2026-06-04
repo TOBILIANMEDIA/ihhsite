@@ -1,12 +1,14 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { ArrowLeft, ShieldCheck, Wallet } from 'lucide-react'
+import { ArrowLeft, ShieldCheck, Wallet, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { AppHeader } from '@/components/app-header'
 import { BottomNav } from '@/components/bottom-nav'
 import { PLANS, SITE, formatNaira } from '@/lib/plans'
+import { startDeposit } from '@/app/actions/deposit'
 import { cn } from '@/lib/utils'
 
 const QUICK_AMOUNTS = [3000, 5000, 10000, 15000, 20000, 30000, 50000, 100000, 200000]
@@ -22,12 +24,24 @@ function TopupContent() {
   const customValue = Number(custom)
   const amount = custom ? customValue : selected ?? 0
   const valid = amount >= SITE.minDeposit
+  const [pending, startTransition] = useTransition()
+
+  function handleDeposit() {
+    startTransition(async () => {
+      const res = await startDeposit(amount)
+      if (res.ok && res.url) {
+        window.location.href = res.url
+      } else {
+        toast.error(res.message ?? "Could not start deposit")
+      }
+    })
+  }
 
   return (
     <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
       <div className="flex items-center gap-3">
         <Link
-          href="/"
+          href="/dashboard"
           aria-label="Back"
           className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground"
         >
@@ -111,9 +125,11 @@ function TopupContent() {
       </div>
 
       <button
-        disabled={!valid}
-        className="flex w-full items-center justify-center rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+        disabled={!valid || pending}
+        onClick={handleDeposit}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
       >
+        {pending && <Loader2 className="h-5 w-5 animate-spin" />}
         Deposit Now
       </button>
 

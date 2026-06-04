@@ -1,9 +1,15 @@
+import { redirect } from 'next/navigation'
+import { getSession } from '@/lib/session'
 import { AppHeader } from '@/components/app-header'
 import { BottomNav } from '@/components/bottom-nav'
 import { PlanCard } from '@/components/plan-card'
 import { PLANS, formatNaira } from '@/lib/plans'
 
-export default function ProductsPage() {
+export const dynamic = 'force-dynamic'
+
+export default async function ProductsPage() {
+  const session = await getSession()
+  if (!session?.user) redirect('/')
   return (
     <div className="min-h-screen pb-24">
       <AppHeader title="IHH Income Table" />
