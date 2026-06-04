@@ -22,6 +22,8 @@ import {
   rejectWithdrawal,
   adjustBalance,
   createGiftCode,
+  approveDeposit,
+  rejectDeposit,
 } from "@/app/actions/admin"
 
 type Stats = {
@@ -434,7 +436,67 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-function Empty({ label }: { label: string }) {
+function DepositsTab({ items }: { items: Deposit[] }) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+
+  function act(id: number, kind: "approve" | "reject") {
+    startTransition(async () => {
+      const [d] = items.filter((x) => x.id === id)
+      const res =
+        kind === "approve"
+          ? await approveDeposit(d.reference)
+          : await rejectDeposit(d.reference)
+      if (res.ok) toast.success(res.message)
+      else toast.error(res.message)
+      router.refresh()
+    })
+  }
+
+  if (items.length === 0) return <Empty label="No deposits" />
+
+  return (
+    <div className="flex flex-col gap-3">
+      {items.map((dep) => (
+        <div key={dep.id} className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="font-bold">{formatNaira(Number(dep.amount))}</p>
+              <p className="text-xs text-muted-foreground">{dep.reference}</p>
+            </div>
+            <StatusBadge status={dep.status} />
+          </div>
+          <div className="mt-3 rounded-xl bg-secondary/50 p-3 text-xs">
+            <p className="font-semibold">{dep.userEmail}</p>
+            <p className="mt-1 text-muted-foreground">
+              {new Date(dep.createdAt).toLocaleString()}
+            </p>
+          </div>
+          {dep.status === "pending" && (
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={() => act(dep.id, "approve")}
+                disabled={pending}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-success py-2.5 text-sm font-bold text-success-foreground disabled:opacity-60"
+              >
+                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Approve
+              </button>
+              <button
+                onClick={() => act(dep.id, "reject")}
+                disabled={pending}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-destructive/40 bg-destructive/10 py-2.5 text-sm font-bold text-destructive disabled:opacity-60"
+              >
+                <X className="h-4 w-4" /> Reject
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+ label }: { label: string }) {
   return (
     <div className="rounded-2xl border border-border bg-card px-4 py-12 text-center text-sm text-muted-foreground">
       {label}
