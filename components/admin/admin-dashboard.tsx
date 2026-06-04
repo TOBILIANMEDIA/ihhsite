@@ -22,9 +22,8 @@ import {
   rejectWithdrawal,
   adjustBalance,
   createGiftCode,
-  approveDeposit,
-  rejectDeposit,
 } from "@/app/actions/admin"
+import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 
 type Stats = {
   users: number
@@ -398,45 +397,6 @@ function GiftCodesTab({ items }: { items: GiftCode[] }) {
 }
 
 function DepositsTab({ items }: { items: Deposit[] }) {
-  if (items.length === 0) return <Empty label="No deposits yet" />
-  return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card">
-      {items.map((d, i) => (
-        <div
-          key={d.id}
-          className={`flex items-center justify-between p-4 ${i !== items.length - 1 ? "border-b border-border" : ""}`}
-        >
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{d.userEmail}</p>
-            <p className="truncate font-mono text-[10px] text-muted-foreground">{d.reference}</p>
-          </div>
-          <div className="text-right">
-            <p className="font-bold tabular-nums">{formatNaira(Number(d.amount))}</p>
-            <StatusBadge status={d.status} />
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    pending: "bg-amber-400/15 text-amber-400",
-    success: "bg-success/15 text-success",
-    approved: "bg-success/15 text-success",
-    completed: "bg-success/15 text-success",
-    rejected: "bg-destructive/15 text-destructive",
-    failed: "bg-destructive/15 text-destructive",
-  }
-  return (
-    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${map[status] ?? "bg-secondary text-muted-foreground"}`}>
-      {status}
-    </span>
-  )
-}
-
-function DepositsTab({ items }: { items: Deposit[] }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
 
@@ -496,7 +456,23 @@ function DepositsTab({ items }: { items: Deposit[] }) {
   )
 }
 
- label }: { label: string }) {
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    pending: "bg-amber-400/15 text-amber-400",
+    success: "bg-success/15 text-success",
+    approved: "bg-success/15 text-success",
+    completed: "bg-success/15 text-success",
+    rejected: "bg-destructive/15 text-destructive",
+    failed: "bg-destructive/15 text-destructive",
+  }
+  return (
+    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${map[status] ?? "bg-secondary text-muted-foreground"}`}>
+      {status}
+    </span>
+  )
+}
+
+function Empty({ label }: { label: string }) {
   return (
     <div className="rounded-2xl border border-border bg-card px-4 py-12 text-center text-sm text-muted-foreground">
       {label}
