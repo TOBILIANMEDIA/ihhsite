@@ -21,14 +21,13 @@ export function WithdrawForm({ balance }: { balance: number }) {
   })
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }))
 
-  // Load saved bank details on mount
   useEffect(() => {
     startTransition(async () => {
       const saved = await getSavedBankDetails()
-      if (saved) {
+      if (saved && saved.savedBankName) {
         setForm({
           amount: "",
-          bankName: saved.savedBankName || "",
+          bankName: saved.savedBankName,
           accountNumber: saved.savedAccountNumber || "",
           accountName: saved.savedAccountName || "",
         })
@@ -36,7 +35,7 @@ export function WithdrawForm({ balance }: { balance: number }) {
       }
       setLoading(false)
     })
-  }, [])
+  }, [startTransition])
 
   const amount = Number(form.amount)
   const charge = amount > 0 ? Math.round((amount * SITE.withdrawalCharge) / 100) : 0
@@ -47,7 +46,8 @@ export function WithdrawForm({ balance }: { balance: number }) {
     setHasSavedDetails(false)
   }
 
-  function handleSubmit() {
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
     startTransition(async () => {
       const res = await requestWithdrawal({
         amount,
@@ -112,7 +112,7 @@ export function WithdrawForm({ balance }: { balance: number }) {
         </div>
       )}
 
-      <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); handleSubmit() }}>
+      <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <FormField label="Amount (₦)">
           <input
             type="number"
@@ -160,74 +160,7 @@ export function WithdrawForm({ balance }: { balance: number }) {
 
         <button
           type="submit"
-          disabled={pending}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-        >
-          {pending && <Loader2 className="h-5 w-5 animate-spin" />}
-          Request Withdrawal
-        </button>
-      </form>
-    </main>
-  )
-}
-
-      <div className="flex items-center gap-2 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-200">
-        <Clock className="h-5 w-5 shrink-0" />
-        <p>
-          Withdrawals processed {SITE.withdrawalHours}. A {SITE.withdrawalCharge}% fee applies. Minimum{" "}
-          {formatNaira(SITE.minWithdrawal)}.
-        </p>
-      </div>
-
-      <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); handleSubmit() }}>
-        <FormField label="Amount (₦)">
-          <input
-            type="number"
-            inputMode="numeric"
-            placeholder="Enter amount"
-            value={form.amount}
-            onChange={(e) => set("amount")(e.target.value)}
-            className="w-full bg-transparent py-3.5 text-sm outline-none placeholder:text-muted-foreground"
-          />
-        </FormField>
-        <FormField label="Bank Name">
-          <input
-            placeholder="e.g. Access Bank"
-            value={form.bankName}
-            onChange={(e) => set("bankName")(e.target.value)}
-            className="w-full bg-transparent py-3.5 text-sm outline-none placeholder:text-muted-foreground"
-          />
-        </FormField>
-        <FormField label="Account Number">
-          <input
-            inputMode="numeric"
-            placeholder="0123456789"
-            value={form.accountNumber}
-            onChange={(e) => set("accountNumber")(e.target.value)}
-            className="w-full bg-transparent py-3.5 text-sm outline-none placeholder:text-muted-foreground"
-          />
-        </FormField>
-        <FormField label="Account Name">
-          <input
-            placeholder="Account holder name"
-            value={form.accountName}
-            onChange={(e) => set("accountName")(e.target.value)}
-            className="w-full bg-transparent py-3.5 text-sm outline-none placeholder:text-muted-foreground"
-          />
-        </FormField>
-
-        {amount > 0 && (
-          <div className="rounded-2xl border border-border bg-card p-4 text-sm">
-            <Row label="Withdrawal amount" value={formatNaira(amount)} />
-            <Row label={`Fee (${SITE.withdrawalCharge}%)`} value={`- ${formatNaira(charge)}`} />
-            <div className="my-2 border-t border-border" />
-            <Row label="You receive" value={formatNaira(net > 0 ? net : 0)} bold />
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={pending}
+          disabled={pending || !form.bankName || !form.accountNumber || !form.accountName || amount < SITE.minWithdrawal}
           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
         >
           {pending && <Loader2 className="h-5 w-5 animate-spin" />}
