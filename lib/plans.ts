@@ -41,6 +41,11 @@ export const SITE = {
   telegramGroup: 'https://t.me/ihhsupport',
   telegramChannel: 'https://t.me/incomehh',
   telegramSupport: 'ihhsupport',
+  // Bank details for manual deposits
+  bankName: 'Loma Bank',
+  accountName: 'BUIKE SOLUTION VENTURES',
+  accountNumber: '0086293342',
+  paymentExpiryMinutes: 30, // How long user has to complete payment
 }
 
 export function formatNaira(value: number): string {

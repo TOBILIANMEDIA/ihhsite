@@ -3,7 +3,7 @@
 import { Suspense, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { ArrowLeft, ShieldCheck, Wallet, Loader2 } from 'lucide-react'
+import { ArrowLeft, ShieldCheck, Wallet, Loader2, Copy, Check, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppHeader } from '@/components/app-header'
 import { BottomNav } from '@/components/bottom-nav'
@@ -20,25 +20,158 @@ function TopupContent() {
 
   const [selected, setSelected] = useState<number | null>(presetPlan?.price ?? null)
   const [custom, setCustom] = useState('')
+  const [step, setStep] = useState<'amount' | 'confirm'>('amount')
+  const [depositRef, setDepositRef] = useState<string | null>(null)
+  const [expiryTime, setExpiryTime] = useState<Date | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const customValue = Number(custom)
   const amount = custom ? customValue : selected ?? 0
   const valid = amount >= SITE.minDeposit
   const [pending, startTransition] = useTransition()
 
-  function handleDeposit() {
+  function handleProceed() {
+    if (!valid) return
     startTransition(async () => {
       const res = await startDeposit(amount)
-      if (res.ok) {
-        toast.success(res.message ?? "Deposit request submitted!")
-        setSelected(null)
-        setCustom('')
+      if (res.ok && res.reference) {
+        setDepositRef(res.reference)
+        const expiry = new Date()
+        expiry.setMinutes(expiry.getMinutes() + SITE.paymentExpiryMinutes)
+        setExpiryTime(expiry)
+        setStep('confirm')
       } else {
         toast.error(res.message ?? "Could not submit deposit request")
       }
     })
   }
 
+  function handleCopyAccount() {
+    navigator.clipboard.writeText(SITE.accountNumber)
+    setCopied(true)
+    toast.success('Account number copied!')
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  function handleBack() {
+    setStep('amount')
+    setDepositRef(null)
+    setExpiryTime(null)
+  }
+
+  function formatExpiry(date: Date) {
+    return date.toLocaleString('en-NG', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    })
+  }
+
+  // Step 2: Payment Confirmation
+  if (step === 'confirm') {
+    return (
+      <main className="mx-auto flex max-w-md flex-col">
+        {/* Header */}
+        <div className="flex items-center gap-3 bg-card px-4 py-4">
+          <button
+            onClick={handleBack}
+            aria-label="Back"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-foreground"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="flex-1 text-center text-lg font-bold">Payment Confirmation</h1>
+          <div className="w-10" /> {/* Spacer for centering */}
+        </div>
+
+        {/* Content */}
+        <div className="flex flex-col gap-4 bg-background p-4">
+          {/* Instructions */}
+          <p className="text-center text-sm text-foreground">
+            Kindly send <span className="font-bold text-primary">{formatNaira(amount)}</span> to the account details below.
+          </p>
+
+          {/* Warning Box */}
+          <div className="rounded-lg border-l-4 border-destructive bg-destructive/10 p-4">
+            <p className="text-center text-sm text-destructive">
+              <span className="font-bold">Important:</span> Send exactly {formatNaira(amount)}. Sending a different amount may result in loss of funds.
+            </p>
+          </div>
+
+          {/* Bank Details */}
+          <div className="flex flex-col gap-3">
+            {/* Deposit Amount */}
+            <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+              <span className="text-sm text-muted-foreground">Deposit Amount</span>
+              <span className="text-lg font-bold text-primary">{formatNaira(amount)}</span>
+            </div>
+
+            {/* Bank Name */}
+            <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+              <span className="text-sm text-muted-foreground">Bank Name</span>
+              <span className="font-bold text-foreground">{SITE.bankName}</span>
+            </div>
+
+            {/* Account Name */}
+            <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+              <span className="text-sm text-muted-foreground">Account Name</span>
+              <span className="font-bold text-foreground">{SITE.accountName}</span>
+            </div>
+
+            {/* Account Number with Copy */}
+            <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+              <span className="text-sm text-muted-foreground">Account Number</span>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-primary">{SITE.accountNumber}</span>
+                <button
+                  onClick={handleCopyAccount}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors hover:bg-primary/20"
+                  aria-label="Copy account number"
+                >
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Expiry Notice */}
+          {expiryTime && (
+            <p className="text-center text-sm text-muted-foreground">
+              Please note that payment expires on{' '}
+              <span className="font-medium text-foreground">{formatExpiry(expiryTime)}</span>
+            </p>
+          )}
+
+          {/* Reference */}
+          {depositRef && (
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-center text-xs text-muted-foreground">
+                Reference: <span className="font-mono font-medium text-foreground">{depositRef}</span>
+              </p>
+            </div>
+          )}
+
+          {/* Done Button */}
+          <Link
+            href="/dashboard"
+            className="mt-2 flex w-full items-center justify-center rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            I&apos;ve Made the Transfer
+          </Link>
+
+          <p className="flex items-center justify-center gap-2 text-center text-xs text-muted-foreground">
+            <ShieldCheck className="h-4 w-4 text-success" />
+            Your deposit will be confirmed within 5-10 minutes after payment
+          </p>
+        </div>
+      </main>
+    )
+  }
+
+  // Step 1: Select Amount
   return (
     <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
       <div className="flex items-center gap-3">
@@ -128,16 +261,16 @@ function TopupContent() {
 
       <button
         disabled={!valid || pending}
-        onClick={handleDeposit}
+        onClick={handleProceed}
         className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {pending && <Loader2 className="h-5 w-5 animate-spin" />}
-        Deposit Now
+        Proceed to Payment
       </button>
 
       <p className="flex items-center justify-center gap-2 text-center text-xs text-muted-foreground">
         <ShieldCheck className="h-4 w-4 text-success" />
-        Your request will be reviewed by our team • Funds reflect after approval
+        Manual bank transfer • Funds reflect after confirmation
       </p>
     </main>
   )
