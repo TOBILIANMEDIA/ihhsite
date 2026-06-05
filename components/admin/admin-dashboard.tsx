@@ -22,6 +22,11 @@ import {
   Eye,
   Star,
   Trophy,
+  Receipt,
+  SlidersHorizontal,
+  ArrowDownToLine,
+  Pause,
+  Play,
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatNaira } from "@/lib/plans"
@@ -40,6 +45,8 @@ import {
   updateMilestone,
   deleteMilestone,
   toggleMilestoneStatus,
+  setDepositsPaused,
+  setWithdrawalsPaused,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 
@@ -107,6 +114,7 @@ type BankAccount = {
   accountName: string
   label: string | null
   isActive: boolean
+  weight: number
   totalDeposits: string
   depositCount: number
   createdAt: Date | string
@@ -119,7 +127,34 @@ type Milestone = {
   isActive: boolean
 }
 
-const TABS = ["Overview", "Withdrawals", "Users", "Gift Codes", "Deposits", "Bank Accounts", "Milestones"] as const
+type Controls = {
+  depositsPaused: boolean
+  withdrawalsPaused: boolean
+}
+
+type Txn = {
+  id: number
+  userId: string
+  type: string
+  amount: string
+  status: string
+  description: string | null
+  reference: string | null
+  createdAt: Date | string
+  userName: string | null
+  userEmail: string | null
+}
+
+const TABS = [
+  "Overview",
+  "Transactions",
+  "Withdrawals",
+  "Users",
+  "Gift Codes",
+  "Deposits",
+  "Bank Accounts",
+  "Milestones",
+] as const
 type Tab = (typeof TABS)[number]
 
 export function AdminDashboard({
@@ -130,6 +165,8 @@ export function AdminDashboard({
   deposits,
   bankAccounts,
   milestones,
+  controls,
+  transactions,
 }: {
   stats: Stats
   withdrawals: Withdrawal[]
@@ -138,6 +175,8 @@ export function AdminDashboard({
   deposits: Deposit[]
   bankAccounts: BankAccount[]
   milestones: Milestone[]
+  controls: Controls
+  transactions: Txn[]
 }) {
   const [tab, setTab] = useState<Tab>("Overview")
 
@@ -173,7 +212,8 @@ export function AdminDashboard({
           ))}
         </div>
 
-        {tab === "Overview" && <Overview stats={stats} />}
+        {tab === "Overview" && <Overview stats={stats} controls={controls} />}
+        {tab === "Transactions" && <TransactionsTab items={transactions} />}
         {tab === "Withdrawals" && <Withdrawals items={withdrawals} />}
         {tab === "Users" && <UsersTab items={users} />}
         {tab === "Gift Codes" && <GiftCodesTab items={giftCodes} />}
@@ -185,15 +225,105 @@ export function AdminDashboard({
   )
 }
 
-function Overview({ stats }: { stats: Stats }) {
+function TransactionsTab({ items }: { items: Txn[] }) {
+  const [filter, setFilter] = useState<string>("all")
+  const types = ["all", "deposit", "withdrawal", "earning", "bonus", "referral", "adjustment"]
+  const filtered = filter === "all" ? items : items.filter((t) => t.type === filter)
+
+  const tint = (type: string) => {
+    if (type === "deposit" || type === "earning" || type === "bonus" || type === "referral") return "text-success"
+    if (type === "withdrawal") return "text-amber-400"
+    if (type === "adjustment") return "text-sky-400"
+    return "text-muted-foreground"
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <Receipt className="h-4 w-4 text-primary" />
+        <h3 className="text-sm font-bold">Live Transactions</h3>
+        <span className="ml-auto text-xs text-muted-foreground">{filtered.length} shown</span>
+      </div>
+      <div className="no-scrollbar flex gap-2 overflow-x-auto">
+        {types.map((t) => (
+          <button
+            key={t}
+            onClick={() => setFilter(t)}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
+              filter === t ? "bg-primary text-primary-foreground" : "border border-border bg-card text-muted-foreground"
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+      {filtered.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">No transactions</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {filtered.map((t) => (
+            <div key={t.id} className="rounded-2xl border border-border bg-card p-3">
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-bold uppercase ${tint(t.type)}`}>{t.type}</span>
+                <span className={`text-sm font-bold tabular-nums ${tint(t.type)}`}>
+                  {formatNaira(Number(t.amount))}
+                </span>
+              </div>
+              <p className="mt-1 truncate text-sm font-medium">{t.userName ?? t.userEmail ?? t.userId.slice(0, 10)}</p>
+              {t.description && <p className="truncate text-xs text-muted-foreground">{t.description}</p>}
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                {new Date(t.createdAt).toLocaleString()}
+                {t.status ? ` · ${t.status}` : ""}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Overview({ stats, controls }: { stats: Stats; controls: Controls }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const [depositsPaused, setDepPaused] = useState(controls.depositsPaused)
+  const [withdrawalsPaused, setWdPaused] = useState(controls.withdrawalsPaused)
+  const [savingDep, startDepTransition] = useTransition()
+  const [savingWd, startWdTransition] = useTransition()
 
   function handleProcessIncome() {
     startTransition(async () => {
       const res = await processAllIncome()
       if (res.ok) toast.success(res.message)
       else toast.error(res.message ?? "Failed")
+      router.refresh()
+    })
+  }
+
+  function toggleDeposits() {
+    const next = !depositsPaused
+    setDepPaused(next)
+    startDepTransition(async () => {
+      const res = await setDepositsPaused(next)
+      if (res.ok) toast.success(res.message)
+      else {
+        toast.error("Failed")
+        setDepPaused(!next)
+      }
+      router.refresh()
+    })
+  }
+
+  function toggleWithdrawals() {
+    const next = !withdrawalsPaused
+    setWdPaused(next)
+    startWdTransition(async () => {
+      const res = await setWithdrawalsPaused(next)
+      if (res.ok) toast.success(res.message)
+      else {
+        toast.error("Failed")
+        setWdPaused(!next)
+      }
       router.refresh()
     })
   }
@@ -216,6 +346,70 @@ function Overview({ stats }: { stats: Stats }) {
         {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4" />}
         Process All Income
       </button>
+
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex items-center gap-2">
+          <SlidersHorizontal className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-bold">Site Controls</h3>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Pausing hides the action from users entirely and blocks new requests.
+        </p>
+        <div className="mt-3 flex flex-col gap-2">
+          <button
+            onClick={toggleDeposits}
+            disabled={savingDep}
+            className={`flex items-center justify-between rounded-xl border px-3 py-3 text-sm font-semibold transition-colors disabled:opacity-60 ${
+              depositsPaused
+                ? "border-destructive/40 bg-destructive/10 text-destructive"
+                : "border-success/40 bg-success/10 text-success"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <ArrowDownToLine className="h-4 w-4" /> Deposits
+            </span>
+            <span className="flex items-center gap-1.5">
+              {savingDep ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : depositsPaused ? (
+                <>
+                  <Pause className="h-4 w-4" /> Paused
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4" /> Active
+                </>
+              )}
+            </span>
+          </button>
+          <button
+            onClick={toggleWithdrawals}
+            disabled={savingWd}
+            className={`flex items-center justify-between rounded-xl border px-3 py-3 text-sm font-semibold transition-colors disabled:opacity-60 ${
+              withdrawalsPaused
+                ? "border-destructive/40 bg-destructive/10 text-destructive"
+                : "border-success/40 bg-success/10 text-success"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <ArrowUpFromLine className="h-4 w-4" /> Withdrawals
+            </span>
+            <span className="flex items-center gap-1.5">
+              {savingWd ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : withdrawalsPaused ? (
+                <>
+                  <Pause className="h-4 w-4" /> Paused
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4" /> Active
+                </>
+              )}
+            </span>
+          </button>
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-3">
         {cards.map((c) => (
           <div key={c.label} className="rounded-2xl border border-border bg-card p-4">
@@ -581,6 +775,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
     bankName: "",
     accountName: "",
     label: "",
+    weight: "1",
   })
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState({
@@ -588,14 +783,15 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
     bankName: "",
     accountName: "",
     label: "",
+    weight: "1",
   })
 
   function handleAdd() {
     startTransition(async () => {
-      const res = await addBankAccount(form)
+      const res = await addBankAccount({ ...form, weight: Number(form.weight) || 1 })
       if (res.ok) {
         toast.success(res.message)
-        setForm({ accountNumber: "", bankName: "", accountName: "", label: "" })
+        setForm({ accountNumber: "", bankName: "", accountName: "", label: "", weight: "1" })
         router.refresh()
       } else {
         toast.error(res.message)
@@ -629,12 +825,13 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
       bankName: acc.bankName,
       accountName: acc.accountName,
       label: acc.label || "",
+      weight: String(acc.weight ?? 1),
     })
   }
 
   function handleSaveEdit(id: number) {
     startTransition(async () => {
-      const res = await updateBankAccount(id, editForm)
+      const res = await updateBankAccount(id, { ...editForm, weight: Number(editForm.weight) || 1 })
       if (res.ok) {
         toast.success(res.message)
         setEditingId(null)
@@ -677,6 +874,19 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
             onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
             className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
           />
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+              Display weight (higher = shown more often)
+            </label>
+            <input
+              type="number"
+              min={1}
+              placeholder="1"
+              value={form.weight}
+              onChange={(e) => setForm((f) => ({ ...f, weight: e.target.value }))}
+              className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+          </div>
           <button
             onClick={handleAdd}
             disabled={pending || !form.accountNumber || !form.bankName || !form.accountName}
@@ -721,6 +931,19 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
                     onChange={(e) => setEditForm((f) => ({ ...f, label: e.target.value }))}
                     className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
                   />
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+                      Display weight (higher = shown more often)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      placeholder="1"
+                      value={editForm.weight}
+                      onChange={(e) => setEditForm((f) => ({ ...f, weight: e.target.value }))}
+                      className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+                    />
+                  </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setEditingId(null)}
@@ -768,6 +991,11 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
                     <div className="text-xs">
                       <span className="text-muted-foreground">Deposits: </span>
                       <span className="font-bold">{acc.depositCount}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs">
+                      <Star className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-muted-foreground">Weight: </span>
+                      <span className="font-bold text-primary">{acc.weight ?? 1}</span>
                     </div>
                     <div className="text-xs">
                       <span className="text-muted-foreground">Total: </span>
