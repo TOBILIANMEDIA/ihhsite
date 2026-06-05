@@ -41,6 +41,7 @@ export const SITE = {
   telegramGroup: 'https://t.me/ihhsupport',
   telegramChannel: 'https://t.me/incomehh',
   telegramSupport: 'ihhsupport',
+  paymentExpiryMinutes: 30, // How long user has to complete payment
 }
 
 export function formatNaira(value: number): string {
