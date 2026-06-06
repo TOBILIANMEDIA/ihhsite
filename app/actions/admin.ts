@@ -15,11 +15,13 @@ import {
   referralMilestone,
   milestoneClaim,
   promoterCode,
+  luckyDrawRound,
+  luckyDrawSlot,
 } from "@/lib/db/schema"
 import { requireAdmin } from "@/lib/session"
 import { accrueIncomeForAll } from "@/lib/income-engine"
 import { getPauseFlags, setSetting, SETTING_KEYS } from "@/app/actions/settings"
-import { and, desc, eq, sql } from "drizzle-orm"
+import { and, asc, desc, eq, gt, sql, sum } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
 export async function getAdminStats() {
@@ -618,11 +620,227 @@ export async function deletePromoterCode(id: number) {
   return { ok: true, message: "Promoter code deleted" }
 }
 
+// ── Admin: Investment Management ─────────────────────────────────────────────
+
+export async function getAllInvestments() {
+  await requireAdmin()
+  const rows = await db
+    .select({
+      id: investment.id,
+      userId: investment.userId,
+      planName: investment.planName,
+      price: investment.price,
+      dailyEarning: investment.dailyEarning,
+      totalEarning: investment.totalEarning,
+      amountEarned: investment.amountEarned,
+      daysPaid: investment.daysPaid,
+      durationDays: investment.durationDays,
+      status: investment.status,
+      createdAt: investment.createdAt,
+      lastPayoutAt: investment.lastPayoutAt,
+      userName: userTable.name,
+      userEmail: userTable.email,
+    })
+    .from(investment)
+    .leftJoin(userTable, eq(investment.userId, userTable.id))
+    .orderBy(desc(investment.createdAt))
+    .limit(300)
+  return rows
+}
+
+export async function adminCancelInvestment(id: number) {
+  await requireAdmin()
+  const [inv] = await db.select().from(investment).where(eq(investment.id, id))
+  if (!inv) return { ok: false, message: "Investment not found" }
+  if (inv.status !== "active") return { ok: false, message: "Investment is not active" }
+
+  // Refund unearned capital proportionally (refund principal minus what was paid out)
+  const earned = Number(inv.amountEarned)
+  const principal = Number(inv.price)
+  const refund = Math.max(0, principal - earned)
+
+  await db.update(investment).set({ status: "cancelled" }).where(eq(investment.id, id))
+
+  if (refund > 0) {
+    await db
+      .update(wallet)
+      .set({ balance: sql`${wallet.balance} + ${refund}`, updatedAt: new Date() })
+      .where(eq(wallet.userId, inv.userId))
+
+    await db.insert(transaction).values({
+      userId: inv.userId,
+      type: "refund",
+      amount: String(refund),
+      description: `Investment ${inv.planName} cancelled by admin — ₦${refund.toLocaleString()} refunded`,
+    })
+  }
+
+  revalidatePath("/admin")
+  return { ok: true, message: `Investment cancelled. ₦${refund.toLocaleString()} refunded.` }
+}
+
+export async function adminDeleteInvestment(id: number) {
+  await requireAdmin()
+  const [inv] = await db.select().from(investment).where(eq(investment.id, id))
+  if (!inv) return { ok: false, message: "Investment not found" }
+
+  await db.update(investment).set({ status: "deleted" }).where(eq(investment.id, id))
+  revalidatePath("/admin")
+  return { ok: true, message: "Investment removed" }
+}
+
+export async function adminExtendInvestment(id: number, extraDays: number) {
+  await requireAdmin()
+  const [inv] = await db.select().from(investment).where(eq(investment.id, id))
+  if (!inv) return { ok: false, message: "Investment not found" }
+
+  await db
+    .update(investment)
+    .set({ durationDays: inv.durationDays + extraDays })
+    .where(eq(investment.id, id))
+
+  revalidatePath("/admin")
+  return { ok: true, message: `Extended by ${extraDays} days` }
+}
+
+// ── Admin: Financials ─────────────────────────────────────────────────────────
+
+export async function getFinancials() {
+  await requireAdmin()
+
+  const [charges] = await db
+    .select({ total: sql<number>`coalesce(sum(charge),0)::float` })
+    .from(withdrawal)
+    .where(eq(withdrawal.status, "approved"))
+
+  const [payouts] = await db
+    .select({ total: sql<number>`coalesce(sum("netAmount"),0)::float` })
+    .from(withdrawal)
+    .where(eq(withdrawal.status, "approved"))
+
+  const [pendingPayouts] = await db
+    .select({ total: sql<number>`coalesce(sum("netAmount"),0)::float` })
+    .from(withdrawal)
+    .where(eq(withdrawal.status, "pending"))
+
+  const [deposits] = await db
+    .select({ total: sql<number>`coalesce(sum(amount),0)::float` })
+    .from(deposit)
+    .where(eq(deposit.status, "approved"))
+
+  const [activeInvCount] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(investment)
+    .where(eq(investment.status, "active"))
+
+  const [totalInvAmount] = await db
+    .select({ total: sql<number>`coalesce(sum(price),0)::float` })
+    .from(investment)
+    .where(eq(investment.status, "active"))
+
+  const [totalEarned] = await db
+    .select({ total: sql<number>`coalesce(sum("totalEarned"),0)::float` })
+    .from(wallet)
+
+  const [totalWithdrawn] = await db
+    .select({ total: sql<number>`coalesce(sum("totalWithdrawn"),0)::float` })
+    .from(wallet)
+
+  return {
+    withdrawalCharges: charges.total,
+    totalPayouts: payouts.total,
+    pendingPayouts: pendingPayouts.total,
+    totalDeposits: deposits.total,
+    activeInvestments: activeInvCount.c,
+    activeInvestmentVolume: totalInvAmount.total,
+    platformTotalEarned: totalEarned.total,
+    platformTotalWithdrawn: totalWithdrawn.total,
+    platformRevenue: charges.total, // charges collected = platform revenue
+  }
+}
+
+// ── Admin: Lucky Draw ─────────────────────────────────────────────────────────
+
+export async function getLuckyDrawRounds() {
+  await requireAdmin()
+  return db.select().from(luckyDrawRound).orderBy(desc(luckyDrawRound.drawDate)).limit(30)
+}
+
+export async function executeLuckyDraw(drawDate: string) {
+  await requireAdmin()
+
+  const [round] = await db
+    .select()
+    .from(luckyDrawRound)
+    .where(eq(luckyDrawRound.drawDate, drawDate))
+
+  if (!round) return { ok: false, message: "Draw round not found" }
+  if (round.status === "drawn") return { ok: false, message: "Draw already executed" }
+
+  // Get all slots for this date
+  const slots = await db
+    .select()
+    .from(luckyDrawSlot)
+    .where(eq(luckyDrawSlot.drawDate, drawDate))
+
+  if (slots.length === 0) return { ok: false, message: "No slots entered for this draw" }
+
+  // Shuffle slots to pick 3 unique winners
+  const shuffled = slots.sort(() => Math.random() - 0.5)
+  const seenUsers = new Set<string>()
+  const winners: typeof slots = []
+  for (const slot of shuffled) {
+    if (!seenUsers.has(slot.userId)) {
+      seenUsers.add(slot.userId)
+      winners.push(slot)
+      if (winners.length === 3) break
+    }
+  }
+
+  const pool = Number(round.prizePool)
+  const shares = [0.5, 0.3, 0.2].slice(0, winners.length)
+  const amounts = shares.map((s) => Math.round(pool * s))
+
+  // Pay out winners
+  for (let i = 0; i < winners.length; i++) {
+    const w = winners[i]
+    const amount = amounts[i]
+    if (!w || amount <= 0) continue
+
+    await db
+      .update(wallet)
+      .set({ balance: sql`${wallet.balance} + ${amount}`, totalEarned: sql`${wallet.totalEarned} + ${amount}`, updatedAt: new Date() })
+      .where(eq(wallet.userId, w.userId))
+
+    await db.insert(transaction).values({
+      userId: w.userId,
+      type: "lucky_draw_win",
+      amount: String(amount),
+      description: `Lucky Draw winner — ${i === 0 ? "1st" : i === 1 ? "2nd" : "3rd"} place (₦${amount.toLocaleString()})`,
+    })
+  }
+
+  // Update round record
+  await db.update(luckyDrawRound).set({
+    status: "drawn",
+    winner1Id: winners[0]?.userId ?? null,
+    winner1Amount: amounts[0] ? String(amounts[0]) : null,
+    winner2Id: winners[1]?.userId ?? null,
+    winner2Amount: amounts[1] ? String(amounts[1]) : null,
+    winner3Id: winners[2]?.userId ?? null,
+    winner3Amount: amounts[2] ? String(amounts[2]) : null,
+    executedAt: new Date(),
+  }).where(eq(luckyDrawRound.drawDate, drawDate))
+
+  revalidatePath("/admin")
+  return { ok: true, message: `Draw executed. ${winners.length} winners paid from ₦${pool.toLocaleString()} pool.` }
+}
+
 // Single action that fetches all admin dashboard data in parallel.
 // Used by the live-polling client so it only needs one round-trip.
 export async function getAdminData() {
   await requireAdmin()
-  const [stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes] =
+  const [stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds] =
     await Promise.all([
       getAdminStats(),
       getPendingWithdrawals(),
@@ -634,6 +852,9 @@ export async function getAdminData() {
       getSiteControls(),
       getAllTransactions({ limit: 100 }),
       getPromoterCodes(),
+      getAllInvestments(),
+      getFinancials(),
+      getLuckyDrawRounds(),
     ])
-  return { stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes }
+  return { stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds }
 }

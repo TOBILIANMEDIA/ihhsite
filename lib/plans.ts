@@ -28,7 +28,7 @@ export const SITE = {
   short: 'IHH',
   tagline: 'Investment Platform',
   signInBonus: 100,
-  welcomeBonus: 1000,
+  welcomeBonus: 900,
   investmentBonusPercent: 10,
   minWithdrawal: 1000,
   minDeposit: 3000,
@@ -42,6 +42,36 @@ export const SITE = {
   telegramChannel: 'https://t.me/incomehh',
   telegramSupport: 'ihhsupport',
   paymentExpiryMinutes: 30,
+
+  // Stake & Spin
+  stakeMin: 500,
+  stakeMax: 50000,
+  // House win probability as a fraction (0.55 = 55% chance user loses)
+  stakeHouseEdge: 0.55,
+  // Multipliers applied to stake on win
+  stakeMultipliers: [1.5, 1.8, 2.0, 2.5, 3.0] as number[],
+
+  // Lucky Draw
+  luckyDrawSlotCost: 200,     // cost to buy one extra slot
+  luckyDrawFreePerInvestment: 1, // free slots per active investment per day
+  luckyDrawPrizeShares: [0.5, 0.3, 0.2] as number[], // 50/30/20 split for top 3
+
+  // Lock Vault tiers: { days, bonusPercent, earlyPenaltyPercent }
+  vaultTiers: [
+    { days: 7,  bonusPercent: 8,  penaltyPercent: 10 },
+    { days: 14, bonusPercent: 18, penaltyPercent: 10 },
+    { days: 30, bonusPercent: 40, penaltyPercent: 10 },
+  ] as { days: number; bonusPercent: number; penaltyPercent: number }[],
+  vaultMin: 1000,
+
+  // Feature flags (admin can toggle via site_settings table)
+  features: {
+    stakeAndSpin: true,
+    luckyDraw: true,
+    lockVault: true,
+    flashMissions: false,   // scaffold only — off by default
+    referralRace: false,    // scaffold only — off by default
+  },
 }
 
 export function formatNaira(value: number): string {

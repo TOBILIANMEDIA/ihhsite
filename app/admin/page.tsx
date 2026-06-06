@@ -14,6 +14,9 @@ import {
   getSiteControls,
   getAllTransactions,
   getPromoterCodes,
+  getAllInvestments,
+  getFinancials,
+  getLuckyDrawRounds,
 } from "@/app/actions/admin"
 import { AdminDashboard } from "@/components/admin/admin-dashboard"
 
@@ -26,19 +29,35 @@ export default async function AdminPage() {
   const [p] = await db.select().from(profile).where(eq(profile.userId, session.user.id))
   if (!p || p.role !== "admin") redirect("/dashboard")
 
-  const [stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes] =
-    await Promise.all([
-      getAdminStats(),
-      getPendingWithdrawals(),
-      getAdminUsers(),
-      getGiftCodes(),
-      getRecentDeposits(),
-      getBankAccounts(),
-      getMilestones(),
-      getSiteControls(),
-      getAllTransactions({ limit: 100 }),
-      getPromoterCodes(),
-    ])
+  const [
+    stats,
+    withdrawals,
+    users,
+    giftCodes,
+    deposits,
+    bankAccounts,
+    milestones,
+    controls,
+    transactions,
+    promoterCodes,
+    investments,
+    financials,
+    drawRounds,
+  ] = await Promise.all([
+    getAdminStats(),
+    getPendingWithdrawals(),
+    getAdminUsers(),
+    getGiftCodes(),
+    getRecentDeposits(),
+    getBankAccounts(),
+    getMilestones(),
+    getSiteControls(),
+    getAllTransactions({ limit: 100 }),
+    getPromoterCodes(),
+    getAllInvestments(),
+    getFinancials(),
+    getLuckyDrawRounds(),
+  ])
 
   return (
     <AdminDashboard
@@ -52,6 +71,9 @@ export default async function AdminPage() {
       controls={controls}
       transactions={transactions}
       promoterCodes={promoterCodes}
+      investments={investments}
+      financials={financials}
+      drawRounds={drawRounds}
     />
   )
 }

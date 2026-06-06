@@ -32,6 +32,12 @@ import {
   Link2,
   Percent,
   RefreshCw,
+  BarChart3,
+  Dices,
+  Ticket,
+  CalendarCheck,
+  Ban,
+  CalendarPlus,
 } from "lucide-react"
 import { toast } from "sonner"
 import { SITE, formatNaira } from "@/lib/plans"
@@ -58,6 +64,10 @@ import {
   deletePromoterCode,
   setPromoterCommission,
   getAdminData,
+  adminCancelInvestment,
+  adminDeleteInvestment,
+  adminExtendInvestment,
+  executeLuckyDraw,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 
@@ -172,8 +182,11 @@ type PromoterCode = {
 
 const TABS = [
   "Overview",
+  "Financials",
+  "Investments",
   "Transactions",
   "Withdrawals",
+  "Lucky Draw",
   "Users",
   "Gift Codes",
   "Promoter Codes",
@@ -182,6 +195,45 @@ const TABS = [
   "Milestones",
 ] as const
 type Tab = (typeof TABS)[number]
+
+type InvestmentRow = {
+  id: number
+  userId: string
+  planName: string
+  price: string
+  dailyEarning: string
+  totalEarning: string
+  amountEarned: string
+  daysPaid: number
+  durationDays: number
+  status: string
+  createdAt: Date | string
+  userName: string | null
+  userEmail: string | null
+}
+
+type Financials = {
+  withdrawalCharges: number
+  totalPayouts: number
+  pendingPayouts: number
+  totalDeposits: number
+  activeInvestments: number
+  activeInvestmentVolume: number
+  platformTotalEarned: number
+  platformTotalWithdrawn: number
+  platformRevenue: number
+}
+
+type DrawRound = {
+  id: number
+  drawDate: string
+  prizePool: string
+  status: string
+  winner1Id: string | null
+  winner2Id: string | null
+  winner3Id: string | null
+  executedAt: Date | string | null
+}
 
 type AdminData = {
   stats: Stats
@@ -194,6 +246,9 @@ type AdminData = {
   controls: Controls
   transactions: Txn[]
   promoterCodes: PromoterCode[]
+  investments: InvestmentRow[]
+  financials: Financials
+  drawRounds: DrawRound[]
 }
 
 export function AdminDashboard(initial: AdminData) {
@@ -224,7 +279,7 @@ export function AdminDashboard(initial: AdminData) {
     }
   }, [refresh])
 
-  const { stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes } = data
+  const { stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds } = data
 
   return (
     <div className="min-h-screen pb-10">
@@ -280,8 +335,11 @@ export function AdminDashboard(initial: AdminData) {
         </div>
 
         {tab === "Overview" && <Overview stats={stats} controls={controls} onAction={() => refresh()} />}
+        {tab === "Financials" && <FinancialsTab data={financials} />}
+        {tab === "Investments" && <InvestmentsTab items={investments} onAction={() => refresh()} />}
         {tab === "Transactions" && <TransactionsTab items={transactions} />}
         {tab === "Withdrawals" && <Withdrawals items={withdrawals} onAction={() => refresh()} />}
+        {tab === "Lucky Draw" && <LuckyDrawTab rounds={drawRounds} onAction={() => refresh()} />}
         {tab === "Users" && <UsersTab items={users} />}
         {tab === "Gift Codes" && <GiftCodesTab items={giftCodes} />}
         {tab === "Promoter Codes" && <PromoterCodesTab items={promoterCodes} onAction={() => refresh()} />}
@@ -1601,6 +1659,274 @@ function Empty({ label }: { label: string }) {
   return (
     <div className="rounded-2xl border border-border bg-card px-4 py-12 text-center text-sm text-muted-foreground">
       {label}
+    </div>
+  )
+}
+
+// ── Financials Tab ────────────────────────────────────────────────────────────
+function FinancialsTab({ data }: { data: Financials }) {
+  const cards = [
+    { label: "Withdrawal Charges (Revenue)", value: data.withdrawalCharges, color: "text-success" },
+    { label: "Total Approved Payouts", value: data.totalPayouts, color: "text-destructive" },
+    { label: "Pending Payouts", value: data.pendingPayouts, color: "text-amber-400" },
+    { label: "Total Deposits Received", value: data.totalDeposits, color: "text-primary" },
+    { label: "Active Investment Volume", value: data.activeInvestmentVolume, color: "text-primary" },
+    { label: "Platform Total Earned (all wallets)", value: data.platformTotalEarned, color: "text-muted-foreground" },
+    { label: "Platform Total Withdrawn (all wallets)", value: data.platformTotalWithdrawn, color: "text-muted-foreground" },
+  ]
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2 rounded-2xl border border-success/30 bg-success/10 p-4">
+        <BarChart3 className="h-5 w-5 text-success" />
+        <div>
+          <p className="text-xs font-bold text-muted-foreground">Platform Revenue (Charges Collected)</p>
+          <p className="font-mono text-2xl font-black text-success">
+            ₦{data.platformRevenue.toLocaleString()}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {cards.map((c) => (
+          <div key={c.label} className="rounded-2xl border border-border bg-card p-4">
+            <p className="mb-1 text-[11px] text-muted-foreground leading-tight">{c.label}</p>
+            <p className={`font-mono text-lg font-bold ${c.color}`}>
+              ₦{c.value.toLocaleString()}
+            </p>
+          </div>
+        ))}
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <p className="mb-1 text-[11px] text-muted-foreground">Active Investments</p>
+          <p className="font-mono text-lg font-bold text-primary">{data.activeInvestments}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Investments Tab ───────────────────────────────────────────────────────────
+function InvestmentsTab({ items, onAction }: { items: InvestmentRow[]; onAction: () => void }) {
+  const [pending, startTransition] = useTransition()
+  const [extendId, setExtendId] = useState<number | null>(null)
+  const [extendDays, setExtendDays] = useState(7)
+  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "completed" | "cancelled">("active")
+
+  const filtered = items.filter((i) => filterStatus === "all" || i.status === filterStatus)
+
+  const handleCancel = (id: number) => {
+    if (!confirm("Cancel this investment? Unearned principal will be refunded.")) return
+    startTransition(async () => {
+      const res = await adminCancelInvestment(id)
+      toast[res.ok ? "success" : "error"](res.message)
+      onAction()
+    })
+  }
+
+  const handleDelete = (id: number) => {
+    if (!confirm("Remove this investment record entirely?")) return
+    startTransition(async () => {
+      const res = await adminDeleteInvestment(id)
+      toast[res.ok ? "success" : "error"](res.message)
+      onAction()
+    })
+  }
+
+  const handleExtend = (id: number) => {
+    startTransition(async () => {
+      const res = await adminExtendInvestment(id, extendDays)
+      toast[res.ok ? "success" : "error"](res.message)
+      setExtendId(null)
+      onAction()
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Filters */}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar">
+        {(["all", "active", "completed", "cancelled"] as const).map((s) => (
+          <button
+            key={s}
+            onClick={() => setFilterStatus(s)}
+            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold capitalize transition-all ${
+              filterStatus === s
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-card text-muted-foreground"
+            }`}
+          >
+            {s} ({s === "all" ? items.length : items.filter((i) => i.status === s).length})
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 && <Empty label="No investments found" />}
+
+      {filtered.map((inv) => {
+        const progress = inv.durationDays > 0 ? Math.min(100, (inv.daysPaid / inv.durationDays) * 100) : 0
+        return (
+          <div key={inv.id} className="rounded-2xl border border-border bg-card p-4">
+            <div className="mb-2 flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm font-bold">{inv.planName}</p>
+                <p className="truncate text-xs text-muted-foreground">{inv.userEmail}</p>
+              </div>
+              <StatusBadge status={inv.status} />
+            </div>
+
+            <div className="mb-3 grid grid-cols-3 gap-2">
+              {[
+                { label: "Invested", value: `₦${Number(inv.price).toLocaleString()}` },
+                { label: "Earned", value: `₦${Number(inv.amountEarned).toLocaleString()}` },
+                { label: "Daily", value: `₦${Number(inv.dailyEarning).toLocaleString()}` },
+              ].map((f) => (
+                <div key={f.label} className="rounded-xl bg-secondary/50 p-2 text-center">
+                  <p className="font-mono text-sm font-bold">{f.value}</p>
+                  <p className="text-[10px] text-muted-foreground">{f.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Progress */}
+            <div className="mb-3">
+              <div className="mb-1 flex justify-between text-[11px] text-muted-foreground">
+                <span>Day {inv.daysPaid} of {inv.durationDays}</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+
+            {inv.status === "active" && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleCancel(inv.id)}
+                  disabled={pending}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-400/30 bg-amber-400/10 py-2 text-xs font-bold text-amber-400 disabled:opacity-60"
+                >
+                  <Ban className="h-3.5 w-3.5" /> Cancel
+                </button>
+                <button
+                  onClick={() => setExtendId(extendId === inv.id ? null : inv.id)}
+                  disabled={pending}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 py-2 text-xs font-bold text-primary disabled:opacity-60"
+                >
+                  <CalendarPlus className="h-3.5 w-3.5" /> Extend
+                </button>
+                <button
+                  onClick={() => handleDelete(inv.id)}
+                  disabled={pending}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-destructive/30 bg-destructive/10 py-2 text-xs font-bold text-destructive disabled:opacity-60"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Delete
+                </button>
+              </div>
+            )}
+
+            {extendId === inv.id && (
+              <div className="mt-3 flex gap-2">
+                <select
+                  value={extendDays}
+                  onChange={(e) => setExtendDays(Number(e.target.value))}
+                  className="flex-1 rounded-xl border border-border bg-secondary px-3 py-2 text-sm"
+                >
+                  {[3, 7, 14, 30].map((d) => (
+                    <option key={d} value={d}>{d} days</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => handleExtend(inv.id)}
+                  disabled={pending}
+                  className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground disabled:opacity-60"
+                >
+                  {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm"}
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Lucky Draw Admin Tab ──────────────────────────────────────────────────────
+function LuckyDrawTab({ rounds, onAction }: { rounds: DrawRound[]; onAction: () => void }) {
+  const [pending, startTransition] = useTransition()
+
+  const handleDraw = (drawDate: string) => {
+    if (!confirm(`Execute the Lucky Draw for ${drawDate}? This cannot be undone.`)) return
+    startTransition(async () => {
+      const res = await executeLuckyDraw(drawDate)
+      toast[res.ok ? "success" : "error"](res.message)
+      onAction()
+    })
+  }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const todayRound = rounds.find((r) => r.drawDate === today)
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Today's round */}
+      <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <Ticket className="h-5 w-5 text-primary" />
+          <p className="font-bold text-primary">Today&apos;s Draw ({today})</p>
+        </div>
+        {todayRound ? (
+          <div>
+            <div className="mb-3 flex gap-3">
+              <div className="flex-1 rounded-xl bg-background/60 p-3 text-center">
+                <p className="font-mono text-lg font-bold">₦{Number(todayRound.prizePool).toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground">Prize Pool</p>
+              </div>
+              <div className="flex-1 rounded-xl bg-background/60 p-3 text-center">
+                <p className={`font-bold ${todayRound.status === "drawn" ? "text-success" : "text-amber-400"}`}>
+                  {todayRound.status === "drawn" ? "Drawn" : "Open"}
+                </p>
+                <p className="text-[10px] text-muted-foreground">Status</p>
+              </div>
+            </div>
+            {todayRound.status !== "drawn" && (
+              <button
+                onClick={() => handleDraw(today)}
+                disabled={pending}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-60"
+              >
+                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarCheck className="h-4 w-4" />}
+                Execute Draw
+              </button>
+            )}
+            {todayRound.status === "drawn" && (
+              <div className="rounded-xl border border-success/30 bg-success/10 p-3 text-center">
+                <p className="text-xs font-bold text-success">Draw complete. Winners have been paid.</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No entries yet for today. Users need to enter slots first.
+          </p>
+        )}
+      </div>
+
+      {/* History */}
+      <p className="text-sm font-bold">Draw History</p>
+      {rounds.length === 0 && <Empty label="No draws yet" />}
+      {rounds.map((r) => (
+        <div key={r.id} className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
+          <div>
+            <p className="text-sm font-bold">{r.drawDate}</p>
+            <p className="text-xs text-muted-foreground">Pool: ₦{Number(r.prizePool).toLocaleString()}</p>
+          </div>
+          <StatusBadge status={r.status === "drawn" ? "completed" : "pending"} />
+        </div>
+      ))}
     </div>
   )
 }
