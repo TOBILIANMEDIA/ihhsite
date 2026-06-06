@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { ArrowDownToLine, ArrowUpFromLine, Gift, LogIn, UserPlus } from "lucide-react"
 import { toast } from "sonner"
 import { dailySignIn } from "@/app/actions/account"
+import { SITE } from "@/lib/plans"
 
 export function QuickActions({
   signedInToday = false,
@@ -26,7 +27,7 @@ export function QuickActions({
         toast.success(res.message)
         setDone(true)
         router.refresh()
-      } else if ('requiresInvestment' in res && res.requiresInvestment) {
+      } else if ("requiresInvestment" in res && res.requiresInvestment) {
         toast.error(res.message, {
           action: {
             label: "Invest Now",
@@ -47,42 +48,79 @@ export function QuickActions({
   ]
 
   return (
-    <section className="grid grid-cols-5 gap-2">
-      {linkActions.map((action) => (
+    <div className="flex flex-col gap-3">
+      {/* Sign-in call-to-action banner */}
+      {!done && (
         <button
-          key={action.label}
-          onClick={() => router.push(action.href)}
+          onClick={handleSignIn}
+          disabled={pending}
+          className="flex w-full items-center gap-3 rounded-2xl border border-sky-400/30 bg-sky-400/10 px-4 py-3 text-left transition-colors hover:bg-sky-400/15 disabled:opacity-60"
+        >
+          <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-400/20">
+            <LogIn className="h-5 w-5 text-sky-400 animate-shake" />
+            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-sky-400 text-[9px] font-black text-background">
+              !
+            </span>
+          </span>
+          <div className="flex flex-1 flex-col">
+            <span className="text-sm font-bold text-foreground">Claim your daily sign-in bonus</span>
+            <span className="text-xs text-sky-400 font-semibold">
+              Tap to earn {" "}
+              <span className="font-black">₦{SITE.signInBonus}</span>
+              {" "}right now →
+            </span>
+          </div>
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sky-400" />
+          </span>
+        </button>
+      )}
+
+      {/* Quick action grid */}
+      <section className="grid grid-cols-5 gap-2">
+        {linkActions.map((action) => (
+          <button
+            key={action.label}
+            onClick={() => router.push(action.href)}
+            className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-2.5 text-center transition-colors hover:bg-secondary"
+          >
+            <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${action.bg}`}>
+              <action.icon className={`h-5 w-5 ${action.tint}`} />
+            </span>
+            <span className="text-[11px] font-medium leading-tight text-muted-foreground">{action.label}</span>
+          </button>
+        ))}
+
+        {/* Sign-in grid button */}
+        <button
+          onClick={handleSignIn}
+          disabled={pending}
+          className="relative flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-2.5 text-center transition-colors hover:bg-secondary disabled:opacity-60"
+        >
+          {!done && (
+            <span className="absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-sky-400">
+              <span className="h-2 w-2 animate-ping rounded-full bg-sky-400 opacity-75" />
+            </span>
+          )}
+          <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${done ? "bg-success/15" : "bg-sky-400/15"}`}>
+            <LogIn className={`h-5 w-5 ${done ? "text-success" : "text-sky-400"} ${!done ? "animate-shake" : ""}`} />
+          </span>
+          <span className="text-[11px] font-medium leading-tight text-muted-foreground">
+            {done ? "Claimed" : "Sign In"}
+          </span>
+        </button>
+
+        <button
+          onClick={() => router.push("/team")}
           className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-2.5 text-center transition-colors hover:bg-secondary"
         >
-          <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${action.bg}`}>
-            <action.icon className={`h-5 w-5 ${action.tint}`} />
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15">
+            <UserPlus className="h-5 w-5 text-primary" />
           </span>
-          <span className="text-[11px] font-medium leading-tight text-muted-foreground">{action.label}</span>
+          <span className="text-[11px] font-medium leading-tight text-muted-foreground">Invite</span>
         </button>
-      ))}
-
-      <button
-        onClick={handleSignIn}
-        disabled={pending}
-        className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-2.5 text-center transition-colors hover:bg-secondary disabled:opacity-60"
-      >
-        <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${done ? "bg-success/15" : "bg-sky-400/15"}`}>
-          <LogIn className={`h-5 w-5 ${done ? "text-success" : "text-sky-400"}`} />
-        </span>
-        <span className="text-[11px] font-medium leading-tight text-muted-foreground">
-          {done ? "Claimed" : "Sign In"}
-        </span>
-      </button>
-
-      <button
-        onClick={() => router.push("/team")}
-        className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-2.5 text-center transition-colors hover:bg-secondary"
-      >
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15">
-          <UserPlus className="h-5 w-5 text-primary" />
-        </span>
-        <span className="text-[11px] font-medium leading-tight text-muted-foreground">Invite</span>
-      </button>
-    </section>
+      </section>
+    </div>
   )
 }

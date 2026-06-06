@@ -28,7 +28,7 @@ export const SITE = {
   short: 'IHH',
   tagline: 'Investment Platform',
   signInBonus: 100,
-  welcomeBonus: 1000,
+  welcomeBonus: 900,
   investmentBonusPercent: 10,
   minWithdrawal: 1000,
   minDeposit: 3000,
