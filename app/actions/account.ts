@@ -68,16 +68,22 @@ export async function initAccount(opts: { phone?: string; inviteCode?: string; p
     if (ref && ref.userId !== userId) referrerId = ref.userId // don't self-refer
   }
 
-  // resolve promoter code: if a valid, active promoter code was used, tag this
-  // new user as a promoter.
+  // resolve promoter code: tag as promoter only when the code is active AND
+  // hasn't hit its maxSignups cap (null = unlimited).
   let isPromoter = false
   let matchedPromoCodeId: number | null = null
+  let promoterCommission: number | null = null
   const promo = opts.promoCode?.trim().toUpperCase().replace(/\s+/g, "")
   if (promo) {
     const [pc] = await db.select().from(promoterCode).where(eq(promoterCode.code, promo))
     if (pc && pc.isActive) {
-      isPromoter = true
-      matchedPromoCodeId = pc.id
+      const underCap = pc.maxSignups === null || pc.signups < pc.maxSignups
+      if (underCap) {
+        isPromoter = true
+        matchedPromoCodeId = pc.id
+        promoterCommission = pc.commissionRate ?? null
+      }
+      // If cap is hit the user is registered normally — no promoter tag.
     }
   }
 
@@ -87,9 +93,11 @@ export async function initAccount(opts: { phone?: string; inviteCode?: string; p
     inviteCode: code,
     referredBy: referrerId,
     isPromoter,
+    promoterCommission,
   })
 
-  // increment the promoter code's signup counter
+  // increment the promoter code's signup counter (even if cap was already hit
+  // we only increment when we actually tagged them)
   if (matchedPromoCodeId) {
     await db
       .update(promoterCode)

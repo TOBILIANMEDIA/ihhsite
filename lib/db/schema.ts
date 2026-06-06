@@ -71,6 +71,7 @@ export const profile = pgTable("profile", {
   referredBy: text("referredBy"),
   role: text("role").notNull().default("user"),
   isPromoter: boolean("isPromoter").notNull().default(false),
+  promoterCommission: integer("promoterCommission"), // nullable – override for this user's L1 promoter rate
   signinBonusGiven: boolean("signinBonusGiven").notNull().default(false),
   savedBankName: text("savedBankName"),
   savedAccountName: text("savedAccountName"),
@@ -231,5 +232,7 @@ export const promoterCode = pgTable("promoter_code", {
   label: text("label"),
   isActive: boolean("isActive").notNull().default(true),
   signups: integer("signups").notNull().default(0),
+  maxSignups: integer("maxSignups"),       // null = unlimited
+  commissionRate: integer("commissionRate"), // null = use SITE.promoterLevel1 default
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 })

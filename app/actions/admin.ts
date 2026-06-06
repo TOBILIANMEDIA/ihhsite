@@ -133,6 +133,7 @@ export async function getAdminUsers() {
       email: userTable.email,
       role: profile.role,
       isPromoter: profile.isPromoter,
+      promoterCommission: profile.promoterCommission,
       balance: wallet.balance,
       totalDeposited: wallet.totalDeposited,
       referralEarnings: wallet.referralEarnings,
@@ -532,7 +533,12 @@ export async function getPromoterCodes() {
   return db.select().from(promoterCode).orderBy(desc(promoterCode.createdAt)).limit(100)
 }
 
-export async function createPromoterCode(data: { code?: string; label?: string }) {
+export async function createPromoterCode(data: {
+  code?: string
+  label?: string
+  maxSignups?: number | null
+  commissionRate?: number | null
+}) {
   await requireAdmin()
 
   let code = data.code?.trim().toUpperCase().replace(/\s+/g, "")
@@ -548,14 +554,51 @@ export async function createPromoterCode(data: { code?: string; label?: string }
     }
   }
 
+  // Validate commissionRate 1-100
+  const commission = data.commissionRate != null ? Math.min(100, Math.max(1, Math.round(data.commissionRate))) : null
+  const maxSignups = data.maxSignups != null ? Math.max(1, Math.round(data.maxSignups)) : null
+
   await db.insert(promoterCode).values({
     code: code!,
     label: data.label?.trim() || null,
     isActive: true,
+    maxSignups,
+    commissionRate: commission,
   })
 
   revalidatePath("/admin")
   return { ok: true, message: `Promoter code ${code} created` }
+}
+
+export async function updatePromoterCode(id: number, data: { maxSignups?: number | null; commissionRate?: number | null; label?: string | null }) {
+  await requireAdmin()
+  const [existing] = await db.select().from(promoterCode).where(eq(promoterCode.id, id))
+  if (!existing) return { ok: false, message: "Code not found" }
+
+  const commission = data.commissionRate != null ? Math.min(100, Math.max(1, Math.round(data.commissionRate))) : null
+  const maxSignups = data.maxSignups != null ? Math.max(1, Math.round(data.maxSignups)) : null
+
+  await db.update(promoterCode).set({
+    label: data.label !== undefined ? (data.label?.trim() || null) : existing.label,
+    maxSignups: data.maxSignups !== undefined ? maxSignups : existing.maxSignups,
+    commissionRate: data.commissionRate !== undefined ? commission : existing.commissionRate,
+  }).where(eq(promoterCode.id, id))
+
+  revalidatePath("/admin")
+  return { ok: true, message: "Code updated" }
+}
+
+export async function setPromoterCommission(userId: string, rate: number | null) {
+  await requireAdmin()
+  const [p] = await db.select().from(profile).where(eq(profile.userId, userId))
+  if (!p) return { ok: false, message: "User not found" }
+  if (!p.isPromoter) return { ok: false, message: "User is not a promoter" }
+
+  const commission = rate != null ? Math.min(100, Math.max(1, Math.round(rate))) : null
+  await db.update(profile).set({ promoterCommission: commission }).where(eq(profile.userId, userId))
+
+  revalidatePath("/admin")
+  return { ok: true, message: commission != null ? `Commission set to ${commission}%` : "Commission reset to default" }
 }
 
 export async function togglePromoterCode(id: number) {
