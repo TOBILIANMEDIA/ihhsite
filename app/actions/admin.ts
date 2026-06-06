@@ -22,7 +22,7 @@ import {
 } from "@/lib/db/schema"
 import { requireAdmin } from "@/lib/session"
 import { accrueIncomeForAll } from "@/lib/income-engine"
-import { getPauseFlags, setSetting, SETTING_KEYS } from "@/app/actions/settings"
+import { getPauseFlags, setSetting, getGameConfig, SETTING_KEYS } from "@/app/actions/settings"
 import { and, asc, desc, eq, gt, sql, sum } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
@@ -838,6 +838,44 @@ export async function executeLuckyDraw(drawDate: string) {
   return { ok: true, message: `Draw executed. ${winners.length} winners paid from ₦${pool.toLocaleString()} pool.` }
 }
 
+// ── Admin: Game Config ────────────────────────────────────────────────────────
+
+export async function saveGameConfig(updates: {
+  stakeHouseEdge?: number    // fraction e.g. 0.70
+  stakeMin?: number
+  stakeMax?: number
+  stakeMultipliers?: number[]
+  luckyDrawSlotCost?: number
+  vaultBonus7?: number
+  vaultBonus14?: number
+  vaultBonus30?: number
+  vaultPenalty?: number
+  vaultMin?: number
+}) {
+  await requireAdmin()
+  const g = SETTING_KEYS
+  const pairs: [string, string][] = []
+
+  if (updates.stakeHouseEdge !== undefined) pairs.push([g.stakeHouseEdge, String(updates.stakeHouseEdge)])
+  if (updates.stakeMin !== undefined) pairs.push([g.stakeMin, String(updates.stakeMin)])
+  if (updates.stakeMax !== undefined) pairs.push([g.stakeMax, String(updates.stakeMax)])
+  if (updates.stakeMultipliers !== undefined) pairs.push([g.stakeMultipliers, JSON.stringify(updates.stakeMultipliers)])
+  if (updates.luckyDrawSlotCost !== undefined) pairs.push([g.luckyDrawSlotCost, String(updates.luckyDrawSlotCost)])
+  if (updates.vaultBonus7 !== undefined) pairs.push([g.vaultBonus7, String(updates.vaultBonus7)])
+  if (updates.vaultBonus14 !== undefined) pairs.push([g.vaultBonus14, String(updates.vaultBonus14)])
+  if (updates.vaultBonus30 !== undefined) pairs.push([g.vaultBonus30, String(updates.vaultBonus30)])
+  if (updates.vaultPenalty !== undefined) pairs.push([g.vaultPenalty, String(updates.vaultPenalty)])
+  if (updates.vaultMin !== undefined) pairs.push([g.vaultMin, String(updates.vaultMin)])
+
+  for (const [key, value] of pairs) {
+    await setSetting(key, value)
+  }
+
+  revalidatePath("/admin")
+  revalidatePath("/games")
+  return { ok: true, message: "Game config saved" }
+}
+
 // ── Admin: Game History Queries ───────────────────────────────────────────────
 
 export async function getAllSpins() {
@@ -949,7 +987,7 @@ export async function getGameStats() {
 // Used by the live-polling client so it only needs one round-trip.
 export async function getAdminData() {
   await requireAdmin()
-  const [stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds, spins, vaults, drawSlots, gameStats] =
+  const [stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds, spins, vaults, drawSlots, gameStats, gameConfig] =
     await Promise.all([
       getAdminStats(),
       getPendingWithdrawals(),
@@ -968,6 +1006,7 @@ export async function getAdminData() {
       getAllVaults(),
       getAllDrawSlots(),
       getGameStats(),
+      getGameConfig(),
     ])
-  return { stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds, spins, vaults, drawSlots, gameStats }
+  return { stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds, spins, vaults, drawSlots, gameStats, gameConfig }
 }

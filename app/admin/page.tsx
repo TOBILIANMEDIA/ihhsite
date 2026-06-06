@@ -22,6 +22,7 @@ import {
   getAllDrawSlots,
   getGameStats,
 } from "@/app/actions/admin"
+import { getGameConfig } from "@/app/actions/settings"
 import { AdminDashboard } from "@/components/admin/admin-dashboard"
 
 export const dynamic = "force-dynamic"
@@ -51,6 +52,7 @@ export default async function AdminPage() {
     vaults,
     drawSlots,
     gameStats,
+    gameConfig,
   ] = await Promise.all([
     getAdminStats(),
     getPendingWithdrawals(),
@@ -69,6 +71,7 @@ export default async function AdminPage() {
     getAllVaults(),
     getAllDrawSlots(),
     getGameStats(),
+    getGameConfig(),
   ])
 
   return (
@@ -90,6 +93,7 @@ export default async function AdminPage() {
       vaults={vaults}
       drawSlots={drawSlots}
       gameStats={gameStats}
+      gameConfig={gameConfig}
     />
   )
 }

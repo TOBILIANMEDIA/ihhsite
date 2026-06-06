@@ -69,6 +69,7 @@ import {
   adminDeleteInvestment,
   adminExtendInvestment,
   executeLuckyDraw,
+  saveGameConfig,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 
@@ -243,6 +244,16 @@ type GameStats = {
   draw: { totalSlots: number; paidSlots: number; revenue: number }
 }
 
+type GameConfig = {
+  stakeHouseEdge: number
+  stakeMin: number
+  stakeMax: number
+  stakeMultipliers: number[]
+  luckyDrawSlotCost: number
+  vaultTiers: { days: number; bonusPercent: number; penaltyPercent: number }[]
+  vaultMin: number
+}
+
 type InvestmentRow = {
   id: number
   userId: string
@@ -300,6 +311,7 @@ type AdminData = {
   vaults: VaultRow[]
   drawSlots: DrawSlotRow[]
   gameStats: GameStats
+  gameConfig: GameConfig
 }
 
 export function AdminDashboard(initial: AdminData) {
@@ -330,7 +342,7 @@ export function AdminDashboard(initial: AdminData) {
     }
   }, [refresh])
 
-  const { stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds, spins, vaults, drawSlots, gameStats } = data
+  const { stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds, spins, vaults, drawSlots, gameStats, gameConfig } = data
 
   return (
     <div className="min-h-screen pb-10">
@@ -387,7 +399,7 @@ export function AdminDashboard(initial: AdminData) {
 
         {tab === "Overview" && <Overview stats={stats} controls={controls} onAction={() => refresh()} />}
         {tab === "Financials" && <FinancialsTab data={financials} />}
-        {tab === "Games" && <GamesAdminTab spins={spins} vaults={vaults} drawSlots={drawSlots} drawRounds={drawRounds} gameStats={gameStats} onAction={() => refresh()} />}
+        {tab === "Games" && <GamesAdminTab spins={spins} vaults={vaults} drawSlots={drawSlots} drawRounds={drawRounds} gameStats={gameStats} gameConfig={gameConfig} onAction={() => refresh()} />}
         {tab === "Investments" && <InvestmentsTab items={investments} onAction={() => refresh()} />}
         {tab === "Transactions" && <TransactionsTab items={transactions} />}
         {tab === "Withdrawals" && <Withdrawals items={withdrawals} onAction={() => refresh()} />}
@@ -1720,21 +1732,78 @@ function Empty({ label }: { label: string }) {
 type GameSubTab = "overview" | "spin" | "vault" | "draw"
 
 function GamesAdminTab({
-  spins, vaults, drawSlots, drawRounds, gameStats, onAction,
+  spins, vaults, drawSlots, drawRounds, gameStats, gameConfig, onAction,
 }: {
   spins: SpinRow[]
   vaults: VaultRow[]
   drawSlots: DrawSlotRow[]
   drawRounds: DrawRound[]
   gameStats: GameStats
+  gameConfig: GameConfig
   onAction: () => void
 }) {
   const [sub, setSub] = useState<GameSubTab>("overview")
   const [pending, startTransition] = useTransition()
   const [spinFilter, setSpinFilter] = useState<"all" | "win" | "lose">("all")
   const [vaultFilter, setVaultFilter] = useState<"all" | "locked" | "completed" | "broken">("all")
-  const [houseEdge, setHouseEdge] = useState(String(SITE.stakeHouseEdge * 100))
-  const [slotCost, setSlotCost] = useState(String(SITE.luckyDrawSlotCost))
+
+  // Spin config state — initialised from live DB config
+  const [houseEdgePct, setHouseEdgePct] = useState(String(Math.round(gameConfig.stakeHouseEdge * 100)))
+  const [stakeMin, setStakeMin] = useState(String(gameConfig.stakeMin))
+  const [stakeMax, setStakeMax] = useState(String(gameConfig.stakeMax))
+  const [multipliersRaw, setMultipliersRaw] = useState(gameConfig.stakeMultipliers.join(", "))
+
+  // Draw config state
+  const [slotCost, setSlotCost] = useState(String(gameConfig.luckyDrawSlotCost))
+
+  // Vault config state
+  const [bonus7, setBonus7] = useState(String(gameConfig.vaultTiers[0].bonusPercent))
+  const [bonus14, setBonus14] = useState(String(gameConfig.vaultTiers[1].bonusPercent))
+  const [bonus30, setBonus30] = useState(String(gameConfig.vaultTiers[2].bonusPercent))
+  const [penalty, setPenalty] = useState(String(gameConfig.vaultTiers[0].penaltyPercent))
+  const [vaultMin, setVaultMin] = useState(String(gameConfig.vaultMin))
+
+  const saveSpinConfig = () => {
+    const edge = parseFloat(houseEdgePct) / 100
+    if (isNaN(edge) || edge < 0.1 || edge > 0.99) {
+      toast.error("House edge must be between 10% and 99%")
+      return
+    }
+    const multipliers = multipliersRaw.split(",").map((s) => parseFloat(s.trim())).filter((n) => !isNaN(n) && n > 1)
+    if (multipliers.length === 0) { toast.error("Enter at least one multiplier > 1"); return }
+    startTransition(async () => {
+      const res = await saveGameConfig({
+        stakeHouseEdge: edge,
+        stakeMin: parseInt(stakeMin) || SITE.stakeMin,
+        stakeMax: parseInt(stakeMax) || SITE.stakeMax,
+        stakeMultipliers: multipliers,
+      })
+      toast[res.ok ? "success" : "error"](res.message)
+      onAction()
+    })
+  }
+
+  const saveDrawConfig = () => {
+    startTransition(async () => {
+      const res = await saveGameConfig({ luckyDrawSlotCost: parseInt(slotCost) || SITE.luckyDrawSlotCost })
+      toast[res.ok ? "success" : "error"](res.message)
+      onAction()
+    })
+  }
+
+  const saveVaultConfig = () => {
+    startTransition(async () => {
+      const res = await saveGameConfig({
+        vaultBonus7: parseFloat(bonus7) || SITE.vaultTiers[0].bonusPercent,
+        vaultBonus14: parseFloat(bonus14) || SITE.vaultTiers[1].bonusPercent,
+        vaultBonus30: parseFloat(bonus30) || SITE.vaultTiers[2].bonusPercent,
+        vaultPenalty: parseFloat(penalty) || 10,
+        vaultMin: parseInt(vaultMin) || SITE.vaultMin,
+      })
+      toast[res.ok ? "success" : "error"](res.message)
+      onAction()
+    })
+  }
 
   const SUB_TABS: { id: GameSubTab; label: string; icon: React.ElementType }[] = [
     { id: "overview", label: "Overview", icon: BarChart3 },
@@ -1832,33 +1901,28 @@ function GamesAdminTab({
             </div>
           </div>
 
-          {/* Config display (read-only — edit in plans.ts) */}
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <p className="mb-3 font-bold">Current Config</p>
-            <div className="flex flex-col gap-1.5 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">House Edge (Spin)</span>
-                <span className="font-mono font-bold">{SITE.stakeHouseEdge * 100}% lose chance</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Stake Range</span>
-                <span className="font-mono font-bold">₦{SITE.stakeMin.toLocaleString()} – ₦{SITE.stakeMax.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Multipliers</span>
-                <span className="font-mono font-bold">{SITE.stakeMultipliers.join("x, ")}x</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Slot Cost</span>
-                <span className="font-mono font-bold">₦{SITE.luckyDrawSlotCost.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Vault Tiers</span>
-                <span className="font-mono font-bold">
-                  {SITE.vaultTiers.map((t) => `${t.days}d/+${t.bonusPercent}%`).join(", ")}
-                </span>
-              </div>
+          {/* Live config summary */}
+          <div className="rounded-2xl border border-primary/20 bg-card p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="font-bold">Live Config</p>
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">DB</span>
             </div>
+            <div className="flex flex-col gap-2 text-sm">
+              {[
+                { label: "House Edge (Spin)", value: `${Math.round(gameConfig.stakeHouseEdge * 100)}% lose chance` },
+                { label: "Stake Range", value: `₦${gameConfig.stakeMin.toLocaleString()} – ₦${gameConfig.stakeMax.toLocaleString()}` },
+                { label: "Multipliers", value: gameConfig.stakeMultipliers.map((m) => `${m}x`).join(", ") },
+                { label: "Slot Cost", value: `₦${gameConfig.luckyDrawSlotCost.toLocaleString()}` },
+                { label: "Vault Tiers", value: gameConfig.vaultTiers.map((t) => `${t.days}d/+${t.bonusPercent}%`).join(", ") },
+                { label: "Early Penalty", value: `${gameConfig.vaultTiers[0].penaltyPercent}%` },
+              ].map((r) => (
+                <div key={r.label} className="flex justify-between border-b border-border/50 pb-2 last:border-0 last:pb-0">
+                  <span className="text-muted-foreground">{r.label}</span>
+                  <span className="font-mono font-bold">{r.value}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-[11px] text-muted-foreground">Edit in Stake &amp; Spin / Vault / Draw sub-tabs.</p>
           </div>
         </div>
       )}
@@ -1866,6 +1930,54 @@ function GamesAdminTab({
       {/* ── Stake & Spin History ── */}
       {sub === "spin" && (
         <div className="flex flex-col gap-3">
+
+          {/* Config editor */}
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <p className="mb-3 font-bold text-sm">Spin Config</p>
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">
+                  House Edge — % chance user <span className="font-bold text-destructive">LOSES</span> (current: {Math.round(gameConfig.stakeHouseEdge * 100)}%)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="number" min="10" max="99" step="1"
+                    value={houseEdgePct}
+                    onChange={(e) => setHouseEdgePct(e.target.value)}
+                    className="flex-1 rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm"
+                    placeholder="e.g. 70"
+                  />
+                  <span className="flex items-center text-sm text-muted-foreground">%</span>
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">Higher = platform earns more. 70 means 30% user win rate.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="mb-1 block text-xs text-muted-foreground">Min Stake (₦)</label>
+                  <input type="number" value={stakeMin} onChange={(e) => setStakeMin(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-muted-foreground">Max Stake (₦)</label>
+                  <input type="number" value={stakeMax} onChange={(e) => setStakeMax(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Win Multipliers (comma-separated, e.g. 1.5, 2, 3)</label>
+                <input type="text" value={multipliersRaw} onChange={(e) => setMultipliersRaw(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm" />
+              </div>
+              <button
+                onClick={saveSpinConfig}
+                disabled={pending}
+                className="flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+              >
+                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Spin Config"}
+              </button>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between">
             <p className="text-sm font-bold">{filteredSpins.length} records</p>
             <div className="flex gap-1.5">
@@ -1909,6 +2021,50 @@ function GamesAdminTab({
       {/* ── Lock Vault History ── */}
       {sub === "vault" && (
         <div className="flex flex-col gap-3">
+
+          {/* Config editor */}
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <p className="mb-3 text-sm font-bold">Vault Config</p>
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="mb-1 block text-xs text-muted-foreground">7-day Bonus %</label>
+                  <input type="number" value={bonus7} onChange={(e) => setBonus7(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-muted-foreground">14-day Bonus %</label>
+                  <input type="number" value={bonus14} onChange={(e) => setBonus14(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-muted-foreground">30-day Bonus %</label>
+                  <input type="number" value={bonus30} onChange={(e) => setBonus30(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="mb-1 block text-xs text-muted-foreground">Early Break Penalty %</label>
+                  <input type="number" value={penalty} onChange={(e) => setPenalty(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-muted-foreground">Min Vault Amount (₦)</label>
+                  <input type="number" value={vaultMin} onChange={(e) => setVaultMin(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm" />
+                </div>
+              </div>
+              <button
+                onClick={saveVaultConfig}
+                disabled={pending}
+                className="flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+              >
+                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Vault Config"}
+              </button>
+            </div>
+          </div>
+
           <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
             {(["all", "locked", "completed", "broken"] as const).map((f) => (
               <button
@@ -1966,6 +2122,27 @@ function GamesAdminTab({
       {/* ── Lucky Draw Slots & Rounds ── */}
       {sub === "draw" && (
         <div className="flex flex-col gap-4">
+
+          {/* Config editor */}
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <p className="mb-3 text-sm font-bold">Draw Config</p>
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Slot Purchase Price (₦)</label>
+                <input type="number" value={slotCost} onChange={(e) => setSlotCost(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm" />
+                <p className="mt-1 text-[11px] text-muted-foreground">This is how much users pay for each extra slot. Revenue goes into the prize pool.</p>
+              </div>
+              <button
+                onClick={saveDrawConfig}
+                disabled={pending}
+                className="flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+              >
+                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Draw Config"}
+              </button>
+            </div>
+          </div>
+
           {/* Rounds */}
           <p className="text-sm font-bold">Draw Rounds</p>
           {drawRounds.length === 0 && <Empty label="No draw rounds yet" />}

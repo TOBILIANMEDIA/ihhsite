@@ -11,8 +11,9 @@ import {
   investment,
 } from "@/lib/db/schema"
 import { SITE } from "@/lib/plans"
+import { getGameConfig } from "@/app/actions/settings"
 import { getUserId } from "@/lib/session"
-import { eq, sql, and, gte, lte, desc } from "drizzle-orm"
+import { eq, sql, and, desc } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -21,9 +22,10 @@ import { revalidatePath } from "next/cache"
 
 export async function playSpin(stakeAmount: number) {
   const userId = await getUserId()
+  const cfg = await getGameConfig()
 
-  if (stakeAmount < SITE.stakeMin || stakeAmount > SITE.stakeMax) {
-    return { ok: false, message: `Stake must be between ₦${SITE.stakeMin} and ₦${SITE.stakeMax}` }
+  if (stakeAmount < cfg.stakeMin || stakeAmount > cfg.stakeMax) {
+    return { ok: false, message: `Stake must be between ₦${cfg.stakeMin.toLocaleString()} and ₦${cfg.stakeMax.toLocaleString()}` }
   }
 
   const [w] = await db.select().from(wallet).where(eq(wallet.userId, userId))
@@ -31,15 +33,15 @@ export async function playSpin(stakeAmount: number) {
     return { ok: false, message: "Insufficient balance" }
   }
 
-  // Determine outcome: house wins SITE.stakeHouseEdge of the time
+  // Determine outcome: house wins cfg.stakeHouseEdge fraction of the time
   const rand = Math.random()
-  const userWins = rand > SITE.stakeHouseEdge
+  const userWins = rand > cfg.stakeHouseEdge
 
   let winAmount = 0
   let multiplier = 0
 
   if (userWins) {
-    const mults = SITE.stakeMultipliers
+    const mults = cfg.stakeMultipliers
     multiplier = mults[Math.floor(Math.random() * mults.length)]
     winAmount = Math.round(stakeAmount * multiplier)
   }
@@ -198,13 +200,14 @@ export async function claimFreeDrawSlots() {
 export async function buyDrawSlots(count: number) {
   const userId = await getUserId()
   const today = todayStr()
+  const cfg = await getGameConfig()
 
   if (count < 1 || count > 50) return { ok: false, message: "Invalid slot count" }
 
   const round = await getOrCreateRound(today)
   if (round.status !== "open") return { ok: false, message: "Draw already closed for today" }
 
-  const totalCost = count * SITE.luckyDrawSlotCost
+  const totalCost = count * cfg.luckyDrawSlotCost
   const [w] = await db.select().from(wallet).where(eq(wallet.userId, userId))
   if (!w || Number(w.balance) < totalCost) {
     return { ok: false, message: `Insufficient balance. Need ₦${totalCost.toLocaleString()}` }
@@ -224,7 +227,7 @@ export async function buyDrawSlots(count: number) {
   const rows = Array.from({ length: count }, () => ({
     userId,
     source: "purchased" as const,
-    purchaseAmount: String(SITE.luckyDrawSlotCost),
+    purchaseAmount: String(cfg.luckyDrawSlotCost),
     drawDate: today,
   }))
   await db.insert(luckyDrawSlot).values(rows)
@@ -246,11 +249,12 @@ export async function buyDrawSlots(count: number) {
 
 export async function createVault(amount: number, tierIndex: number) {
   const userId = await getUserId()
+  const cfg = await getGameConfig()
 
-  const tier = SITE.vaultTiers[tierIndex]
+  const tier = cfg.vaultTiers[tierIndex]
   if (!tier) return { ok: false, message: "Invalid vault tier" }
-  if (amount < SITE.vaultMin) {
-    return { ok: false, message: `Minimum vault amount is ₦${SITE.vaultMin.toLocaleString()}` }
+  if (amount < cfg.vaultMin) {
+    return { ok: false, message: `Minimum vault amount is ₦${cfg.vaultMin.toLocaleString()}` }
   }
 
   const [w] = await db.select().from(wallet).where(eq(wallet.userId, userId))
@@ -317,8 +321,9 @@ export async function claimVault(vaultId: number) {
     status = "completed"
     description = `Vault matured — received ₦${payout.toLocaleString()} (₦${principal.toLocaleString()} + ₦${bonus.toLocaleString()} bonus)`
   } else {
-    // Early break: return principal minus penalty
-    const penaltyTier = SITE.vaultTiers.find((t) => t.days === vault.lockDays)
+    // Early break: return principal minus penalty (read live config)
+    const liveCfg = await getGameConfig()
+    const penaltyTier = liveCfg.vaultTiers.find((t) => t.days === vault.lockDays)
     const penaltyPct = penaltyTier?.penaltyPercent ?? 10
     const penalty = Math.round(principal * (penaltyPct / 100))
     payout = principal - penalty

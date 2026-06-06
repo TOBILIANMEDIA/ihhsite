@@ -46,8 +46,8 @@ export const SITE = {
   // Stake & Spin
   stakeMin: 500,
   stakeMax: 50000,
-  // House win probability as a fraction (0.55 = 55% chance user loses)
-  stakeHouseEdge: 0.55,
+  // House win probability as a fraction (0.70 = 70% chance user loses)
+  stakeHouseEdge: 0.70,
   // Multipliers applied to stake on win
   stakeMultipliers: [1.5, 1.8, 2.0, 2.5, 3.0] as number[],
 
