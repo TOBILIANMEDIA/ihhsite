@@ -226,6 +226,60 @@ export const milestoneClaim = pgTable("milestone_claim", {
 
 // Admin-created promoter codes. Anyone registering with one of these codes
 // is automatically tagged as a promoter.
+// ── Games ──────────────────────────────────────────────────────────────────
+
+// Stake & Spin: single-round bet, resolved immediately
+export const stakeSpin = pgTable("stake_spin", {
+  id: serial("id").primaryKey(),
+  userId: text("userId").notNull(),
+  stakeAmount: numeric("stakeAmount", { precision: 14, scale: 2 }).notNull(),
+  outcome: text("outcome").notNull(), // "win" | "lose"
+  multiplier: numeric("multiplier", { precision: 6, scale: 3 }).notNull(),
+  winAmount: numeric("winAmount", { precision: 14, scale: 2 }).notNull(),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+})
+
+// Lucky Draw: one slot = one ticket for today's draw
+export const luckyDrawSlot = pgTable("lucky_draw_slot", {
+  id: serial("id").primaryKey(),
+  userId: text("userId").notNull(),
+  source: text("source").notNull().default("free"), // "free" | "purchased"
+  purchaseAmount: numeric("purchaseAmount", { precision: 14, scale: 2 }),
+  drawDate: text("drawDate").notNull(), // "YYYY-MM-DD"
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+})
+
+// Lucky Draw: one round per day, admin triggers the draw
+export const luckyDrawRound = pgTable("lucky_draw_round", {
+  id: serial("id").primaryKey(),
+  drawDate: text("drawDate").notNull().unique(), // "YYYY-MM-DD"
+  prizePool: numeric("prizePool", { precision: 14, scale: 2 }).notNull().default("0"),
+  status: text("status").notNull().default("open"), // "open" | "drawn"
+  winner1Id: text("winner1Id"),
+  winner1Amount: numeric("winner1Amount", { precision: 14, scale: 2 }),
+  winner2Id: text("winner2Id"),
+  winner2Amount: numeric("winner2Amount", { precision: 14, scale: 2 }),
+  winner3Id: text("winner3Id"),
+  winner3Amount: numeric("winner3Amount", { precision: 14, scale: 2 }),
+  executedAt: timestamp("executedAt"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+})
+
+// Lock Vault: time-locked savings with a bonus on maturity
+export const lockVault = pgTable("lock_vault", {
+  id: serial("id").primaryKey(),
+  userId: text("userId").notNull(),
+  amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+  lockDays: integer("lockDays").notNull(),
+  bonusPercent: numeric("bonusPercent", { precision: 6, scale: 2 }).notNull(),
+  bonusAmount: numeric("bonusAmount", { precision: 14, scale: 2 }).notNull(),
+  status: text("status").notNull().default("locked"), // "locked" | "completed" | "broken"
+  unlocksAt: timestamp("unlocksAt").notNull(),
+  penaltyAmount: numeric("penaltyAmount", { precision: 14, scale: 2 }),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  completedAt: timestamp("completedAt"),
+})
+
 export const promoterCode = pgTable("promoter_code", {
   id: serial("id").primaryKey(),
   code: text("code").notNull().unique(),
