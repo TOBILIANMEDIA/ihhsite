@@ -74,6 +74,7 @@ import {
   saveGameConfig,
   getAdminReferralsForUser,
   testSabussWebhook,
+  adminCheckDeposit,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 
@@ -144,10 +145,13 @@ type Deposit = {
   status: string
   createdAt: Date | string
   userEmail: string | null
+  userId: string | null
   senderName: string | null
   assignedBankName: string | null
   assignedAccountNumber: string | null
   assignedAccountName: string | null
+  bankAccountId: number | null
+  expiresAt: Date | string | null
 }
 
 type BankAccount = {
@@ -161,6 +165,7 @@ type BankAccount = {
   totalDeposits: string
   depositCount: number
   sabussApiKey: string | null
+  sabussPin: string | null
   createdAt: Date | string
 }
 
@@ -336,8 +341,11 @@ export function AdminDashboard(initial: AdminData) {
   const [data, setData] = useState<AdminData>(initial)
   const [tab, setTab] = useState<Tab>("Overview")
   const [refreshing, setRefreshing] = useState(false)
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Set initial timestamp only on the client to prevent SSR/hydration mismatch
+  useEffect(() => { setLastUpdated(new Date()) }, [])
 
   const refresh = useCallback(async (showSpinner = false) => {
     if (showSpinner) setRefreshing(true)
@@ -369,7 +377,7 @@ export function AdminDashboard(initial: AdminData) {
           <div>
             <h1 className="text-lg font-bold tracking-tight">Admin Console</h1>
             <p className="text-xs text-muted-foreground">
-              Updated {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+              {lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Loading..."}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -1264,70 +1272,118 @@ function PromoterCodesTab({ items, onAction }: { items: PromoterCode[]; onAction
   )
 }
 
-function DepositsTab({ items, onAction }: { items: Deposit[]; onAction: () => void }) {
-  const [pending, startTransition] = useTransition()
+function DepositCard({
+  dep,
+  onAction,
+}: {
+  dep: Deposit
+  onAction: () => void
+}) {
+  const [actPending, startActTransition] = useTransition()
+  const [checking, setChecking] = useState(false)
+  const [checkResult, setCheckResult] = useState<{ ok: boolean; found?: boolean; message: string } | null>(null)
 
-  function act(id: number, kind: "approve" | "reject") {
-    startTransition(async () => {
-      const [d] = items.filter((x) => x.id === id)
-      const res =
-        kind === "approve"
-          ? await approveDeposit(d.reference)
-          : await rejectDeposit(d.reference)
+  const isCompleted = dep.status === "success" || dep.status === "approved"
+  const canAct = dep.status === "pending" || dep.status === "processing" || dep.status === "needs_review"
+
+  function act(kind: "approve" | "reject") {
+    startActTransition(async () => {
+      const res = kind === "approve" ? await approveDeposit(dep.reference) : await rejectDeposit(dep.reference)
       if (res.ok) toast.success(res.message)
       else toast.error(res.message)
       onAction()
     })
   }
 
-  if (items.length === 0) return <Empty label="No deposits" />
+  async function handleCheck() {
+    setChecking(true)
+    setCheckResult(null)
+    const res = await adminCheckDeposit(dep.reference)
+    setCheckResult(res)
+    if (res.ok && (res as { found?: boolean }).found && !isCompleted) onAction()
+    setChecking(false)
+  }
 
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="font-bold">{formatNaira(Number(dep.amount))}</p>
+          <p className="text-xs text-muted-foreground">{dep.reference}</p>
+        </div>
+        <StatusBadge status={dep.status} />
+      </div>
+
+      <div className="mt-3 rounded-xl bg-secondary/50 p-3 text-xs">
+        <p className="font-semibold">{dep.userEmail}</p>
+        {dep.senderName && (
+          <p className="mt-1 text-muted-foreground">
+            Sender: <span className="font-medium text-foreground">{dep.senderName}</span>
+          </p>
+        )}
+        {dep.assignedBankName && (
+          <p className="mt-1 text-muted-foreground">
+            To: {dep.assignedBankName} - {dep.assignedAccountNumber} ({dep.assignedAccountName})
+          </p>
+        )}
+        <p className="mt-1 text-muted-foreground">{new Date(dep.createdAt).toLocaleString()}</p>
+      </div>
+
+      {/* Sabuss check result */}
+      {checkResult && (
+        <div
+          className={`mt-3 rounded-xl px-3 py-2.5 text-xs leading-relaxed ${
+            !checkResult.ok
+              ? "bg-destructive/10 text-destructive"
+              : (checkResult as { found?: boolean }).found
+              ? "bg-success/10 text-success"
+              : "bg-secondary text-muted-foreground"
+          }`}
+        >
+          {checkResult.message}
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div className="mt-3 flex flex-col gap-2">
+        {canAct && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => act("approve")}
+              disabled={actPending}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-success py-2.5 text-sm font-bold text-success-foreground disabled:opacity-60"
+            >
+              {actPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Approve
+            </button>
+            <button
+              onClick={() => act("reject")}
+              disabled={actPending}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-destructive/40 bg-destructive/10 py-2.5 text-sm font-bold text-destructive disabled:opacity-60"
+            >
+              <X className="h-4 w-4" /> Reject
+            </button>
+          </div>
+        )}
+        {/* Check Sabuss button — shown for both pending AND completed deposits */}
+        <button
+          onClick={handleCheck}
+          disabled={checking}
+          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-secondary py-2 text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-60"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${checking ? "animate-spin" : ""}`} />
+          {checking ? "Checking Sabuss..." : isCompleted ? "Verify in Sabuss" : "Check Sabuss Now"}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function DepositsTab({ items, onAction }: { items: Deposit[]; onAction: () => void }) {
+  if (items.length === 0) return <Empty label="No deposits" />
   return (
     <div className="flex flex-col gap-3">
       {items.map((dep) => (
-        <div key={dep.id} className="rounded-2xl border border-border bg-card p-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="font-bold">{formatNaira(Number(dep.amount))}</p>
-              <p className="text-xs text-muted-foreground">{dep.reference}</p>
-            </div>
-            <StatusBadge status={dep.status} />
-          </div>
-          <div className="mt-3 rounded-xl bg-secondary/50 p-3 text-xs">
-            <p className="font-semibold">{dep.userEmail}</p>
-            {dep.senderName && (
-              <p className="mt-1 text-muted-foreground">
-                Sender: <span className="font-medium text-foreground">{dep.senderName}</span>
-              </p>
-            )}
-            {dep.assignedBankName && (
-              <p className="mt-1 text-muted-foreground">
-                To: {dep.assignedBankName} - {dep.assignedAccountNumber} ({dep.assignedAccountName})
-              </p>
-            )}
-            <p className="mt-1 text-muted-foreground">
-              {new Date(dep.createdAt).toLocaleString()}
-            </p>
-          </div>
-          {(dep.status === "pending" || dep.status === "processing" || dep.status === "needs_review") && (
-            <div className="mt-3 flex gap-2">
-              <button
-                onClick={() => act(dep.id, "approve")}
-                disabled={pending}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-success py-2.5 text-sm font-bold text-success-foreground disabled:opacity-60"
-              >
-                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Approve
-              </button>
-              <button
-                onClick={() => act(dep.id, "reject")}
-                disabled={pending}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-destructive/40 bg-destructive/10 py-2.5 text-sm font-bold text-destructive disabled:opacity-60"
-              >
-                <X className="h-4 w-4" /> Reject
-              </button>
-            </div>
-          )}
-        </div>
+        <DepositCard key={dep.id} dep={dep} onAction={onAction} />
       ))}
     </div>
   )
@@ -1340,20 +1396,22 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
   const [testResults, setTestResults] = useState<Record<number, { ok: boolean; message: string; status?: string }>>({})
   const [form, setForm] = useState({
     accountNumber: "",
-    bankName: "",
-    accountName: "",
-    label: "",
-    weight: "1",
-    sabussApiKey: "",
+  bankName: "",
+  accountName: "",
+  label: "",
+  weight: "1",
+  sabussApiKey: "",
+  sabussPin: "",
   })
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState({
-    accountNumber: "",
-    bankName: "",
-    accountName: "",
-    label: "",
-    weight: "1",
-    sabussApiKey: "",
+  accountNumber: "",
+  bankName: "",
+  accountName: "",
+  label: "",
+  weight: "1",
+  sabussApiKey: "",
+  sabussPin: "",
   })
 
   function handleAdd() {
@@ -1361,7 +1419,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
       const res = await addBankAccount({ ...form, weight: Number(form.weight) || 1 })
       if (res.ok) {
         toast.success(res.message)
-        setForm({ accountNumber: "", bankName: "", accountName: "", label: "", weight: "1", sabussApiKey: "" })
+        setForm({ accountNumber: "", bankName: "", accountName: "", label: "", weight: "1", sabussApiKey: "", sabussPin: "" })
         router.refresh()
       } else {
         toast.error(res.message)
@@ -1395,8 +1453,9 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
       bankName: acc.bankName,
       accountName: acc.accountName,
       label: acc.label || "",
-      weight: String(acc.weight ?? 1),
-      sabussApiKey: acc.sabussApiKey || "",
+    weight: String(acc.weight ?? 1),
+    sabussApiKey: acc.sabussApiKey || "",
+    sabussPin: acc.sabussPin || "",
     })
   }
 
@@ -1410,11 +1469,12 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
 
   function handleSaveEdit(id: number) {
     startTransition(async () => {
-      const res = await updateBankAccount(id, {
-        ...editForm,
-        weight: Number(editForm.weight) || 1,
-        sabussApiKey: editForm.sabussApiKey || null,
-      })
+    const res = await updateBankAccount(id, {
+  ...editForm,
+  weight: Number(editForm.weight) || 1,
+  sabussApiKey: editForm.sabussApiKey || null,
+  sabussPin: editForm.sabussPin || null,
+  })
       if (res.ok) {
         toast.success(res.message)
         setEditingId(null)
@@ -1503,6 +1563,18 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
               className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary font-mono text-xs"
             />
           </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+              Sabuss Transaction PIN <span className="font-normal text-muted-foreground">(required to query transactions)</span>
+            </label>
+            <input
+              type="password"
+              placeholder="Sabuss PIN"
+              value={form.sabussPin}
+              onChange={(e) => setForm((f) => ({ ...f, sabussPin: e.target.value }))}
+              className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary font-mono text-xs"
+            />
+          </div>
           <button
             onClick={handleAdd}
             disabled={pending || !form.accountNumber || !form.bankName || !form.accountName}
@@ -1568,6 +1640,18 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
                       placeholder="Paste Sabuss API key to enable auto-detection"
                       value={editForm.sabussApiKey}
                       onChange={(e) => setEditForm((f) => ({ ...f, sabussApiKey: e.target.value }))}
+                      className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 font-mono text-xs outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+                      Sabuss Transaction PIN
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="Sabuss PIN"
+                      value={editForm.sabussPin}
+                      onChange={(e) => setEditForm((f) => ({ ...f, sabussPin: e.target.value }))}
                       className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 font-mono text-xs outline-none focus:border-primary"
                     />
                   </div>
@@ -1908,7 +1992,7 @@ function Empty({ label }: { label: string }) {
   )
 }
 
-// ── Games Admin Tab ───────────────────────────────────────────────────────────
+// ── Games Admin Tab ────────────────────────────────────────���──────────────────
 
 type GameSubTab = "overview" | "spin" | "vault" | "draw"
 
