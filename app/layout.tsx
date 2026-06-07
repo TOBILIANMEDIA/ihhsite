@@ -5,8 +5,9 @@ import { Toaster } from 'sonner'
 import { getBoolSetting, SETTING_KEYS } from '@/app/actions/settings'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
-import { profile } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { profile, investment } from '@/lib/db/schema'
+import { eq, count } from 'drizzle-orm'
+import { headers } from 'next/headers'
 import './globals.css'
 
 const geistSans = Geist({
@@ -43,18 +44,44 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  // Check site freeze — only show overlay to non-admin users
+  // Auth/public paths that must NEVER be frozen
+  const headersList = await headers()
+  const pathname = headersList.get("x-pathname") ?? headersList.get("x-invoke-path") ?? ""
+  const AUTH_PATHS = ["/", "/sign-in", "/register"]
+  const isAuthPath = AUTH_PATHS.includes(pathname) || pathname.startsWith("/r/")
+
+  // Short-circuit: no freeze check needed for auth pages
   const [frozen, session] = await Promise.all([
-    getBoolSetting(SETTING_KEYS.siteFrozen),
+    isAuthPath ? Promise.resolve(false) : getBoolSetting(SETTING_KEYS.siteFrozen),
     getSession(),
   ])
-  const userId = session?.user?.id
-  let isAdmin = false
-  if (userId && frozen) {
-    const [p] = await db.select({ role: profile.role }).from(profile).where(eq(profile.userId, userId))
-    isAdmin = p?.role === "admin"
+
+  let showFreeze = false
+
+  if (frozen && !isAuthPath) {
+    const userId = session?.user?.id
+
+    if (userId) {
+      // Admin check — admins are never frozen
+      const [p] = await db
+        .select({ role: profile.role })
+        .from(profile)
+        .where(eq(profile.userId, userId))
+      const isAdmin = p?.role === "admin"
+
+      if (!isAdmin) {
+        // Only freeze users who have at least one investment record (any status)
+        // New users and users who have never invested are completely unaffected
+        const [{ total }] = await db
+          .select({ total: count() })
+          .from(investment)
+          .where(eq(investment.userId, userId))
+        const hasInvested = total > 0
+        showFreeze = hasInvested
+      }
+    }
+    // Unauthenticated visitors — never freeze (let them reach sign-in/register)
   }
-  const showFreeze = frozen && !isAdmin
 
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} bg-background`}>
