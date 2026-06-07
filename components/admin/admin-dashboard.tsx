@@ -76,6 +76,7 @@ import {
   getAdminReferralsForUser,
   testSabussWebhook,
   adminCheckDeposit,
+  adminDeleteTransaction,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 
@@ -429,7 +430,7 @@ export function AdminDashboard(initial: AdminData) {
         {tab === "Financials" && <FinancialsTab data={financials} />}
         {tab === "Games" && <GamesAdminTab spins={spins} vaults={vaults} drawSlots={drawSlots} drawRounds={drawRounds} gameStats={gameStats} gameConfig={gameConfig} onAction={() => refresh()} />}
         {tab === "Investments" && <InvestmentsTab items={investments} onAction={() => refresh()} />}
-        {tab === "Transactions" && <TransactionsTab items={transactions} />}
+        {tab === "Transactions" && <TransactionsTab items={transactions} onAction={() => refresh()} />}
         {tab === "Withdrawals" && <Withdrawals items={withdrawals} onAction={() => refresh()} />}
         {tab === "Lucky Draw" && <LuckyDrawTab rounds={drawRounds} onAction={() => refresh()} />}
         {tab === "Users" && <UsersTab items={users} />}
