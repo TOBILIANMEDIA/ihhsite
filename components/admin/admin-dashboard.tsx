@@ -1564,19 +1564,19 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-muted-foreground">
-              Sabuss Query API Key
-            </label>
-            <p className="mb-1.5 text-xs text-muted-foreground">
-              Get this from your Sabuss dashboard → Profile → API / Query Key. This is different from the webhook API key above.
-            </p>
-            <input
-              type="password"
-              placeholder="Sabuss Query API Key"
-              value={form.sabussPin}
-              onChange={(e) => setForm((f) => ({ ...f, sabussPin: e.target.value }))}
-              className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary font-mono text-xs"
-            />
+  <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+  Sabuss Transaction PIN
+  </label>
+  <p className="mb-1.5 text-xs text-muted-foreground">
+  Your Sabuss account PIN (same PIN you use to log in / approve transactions on Sabuss).
+  </p>
+  <input
+  type="password"
+  placeholder="e.g. 0000"
+  value={form.sabussPin}
+  onChange={(e) => setForm((f) => ({ ...f, sabussPin: e.target.value }))}
+  className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary font-mono text-xs"
+  />
           </div>
           <button
             onClick={handleAdd}
@@ -1647,14 +1647,14 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-muted-foreground">
-                      Sabuss Query API Key
-                    </label>
-                    <p className="mb-1.5 text-xs text-muted-foreground">From Sabuss dashboard → Profile → Query API Key</p>
-                    <input
-                      type="password"
-                      placeholder="Sabuss Query API Key"
-                      value={editForm.sabussPin}
+  <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+  Sabuss Transaction PIN
+  </label>
+  <p className="mb-1.5 text-xs text-muted-foreground">Your Sabuss account PIN (used to verify transactions via the query API)</p>
+  <input
+  type="password"
+  placeholder="e.g. 0000"
+  value={editForm.sabussPin}
                       onChange={(e) => setEditForm((f) => ({ ...f, sabussPin: e.target.value }))}
                       className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 font-mono text-xs outline-none focus:border-primary"
                     />

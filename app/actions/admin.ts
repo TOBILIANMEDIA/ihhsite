@@ -1116,148 +1116,109 @@ export async function adminCheckDeposit(reference: string) {
     return { ok: false, message: "No Sabuss account linked — manual only" }
   }
 
-  // sabussPin is repurposed to store the Sabuss Query API key (separate from the webhook api_key).
-  // You get this from your Sabuss dashboard → Profile → API Key / Query Key.
   if (!acc.sabussPin) {
     return {
       ok: false,
-      message: "No Sabuss Query API Key set. Edit this bank account and paste the Sabuss Query API Key (from your Sabuss dashboard → Profile) into the 'Sabuss Query API Key' field.",
+      message: "No Sabuss PIN set. Edit this bank account and enter your Sabuss transaction PIN.",
     }
   }
 
-  // The Sabuss query API uses the Query Key as the URL path segment AND in the body
+  // Sabuss query API: POST form-encoded (not JSON) to /vtu/api/query/{API_KEY}
+  // with fields: pin + reference (the deposit reference number)
   let sabussData: Record<string, unknown> | null = null
   let rawText = ""
   try {
-    // Try with queryKey in the URL (most common Sabuss pattern)
-    const res = await fetch(`https://sabuss.com/vtu/api/query/${acc.sabussPin}`, {
+    const formBody = new URLSearchParams()
+    formBody.append("pin", acc.sabussPin)
+    formBody.append("reference", reference)
+
+    const res = await fetch(`https://sabuss.com/vtu/api/query/${acc.sabussApiKey}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "credit" }),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: formBody.toString(),
       signal: AbortSignal.timeout(10000),
     })
     rawText = await res.text()
     try { sabussData = JSON.parse(rawText) } catch { /* not JSON */ }
-
-    // If that fails with invalid key, try the original api_key in URL + queryKey as pin in body
-    if ((sabussData as Record<string, unknown>)?.status === "error") {
-      const res2 = await fetch(`https://sabuss.com/vtu/api/query/${acc.sabussApiKey}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "credit", pin: acc.sabussPin }),
-        signal: AbortSignal.timeout(10000),
-      })
-      rawText = await res2.text()
-      try { sabussData = JSON.parse(rawText) } catch { /* not JSON */ }
-    }
   } catch (e) {
     return { ok: false, message: `Could not reach Sabuss API: ${e instanceof Error ? e.message : String(e)}` }
   }
 
   if (!sabussData) {
-    return { ok: false, message: `Sabuss returned non-JSON response: ${rawText.slice(0, 200)}` }
+    return { ok: false, message: `Sabuss returned non-JSON: ${rawText.slice(0, 200)}` }
+  }
+
+  // Sabuss returns { code, status, response } where status=success means found
+  const sabussStatus = String(sabussData.status ?? "").toLowerCase()
+  const sabussResponse = sabussData.response
+
+  if (sabussStatus === "error" || sabussStatus === "failed") {
+    return {
+      ok: false,
+      message: `Sabuss error: ${String(sabussResponse ?? sabussData.message ?? rawText.slice(0, 200))}`,
+    }
   }
 
   const depositAmount = Math.round(Number(dep.amount))
-  // Sabuss deducts ₦50 fee — check both exact and fee-deducted amounts
-  const expectedExact = depositAmount
-  const expectedNet   = depositAmount - 50
-  const createdAt = new Date(dep.createdAt)
 
-  // Sabuss can return rows under many key names — scan all of them
-  const allValues = Object.values(sabussData)
-  const rows: Record<string, unknown>[] = []
-  for (const v of allValues) {
-    if (Array.isArray(v)) {
-      for (const item of v) {
-        if (item && typeof item === "object") rows.push(item as Record<string, unknown>)
-      }
-    }
-  }
+  // sabussResponse is either a single transaction object or an array
+  const txList: Record<string, unknown>[] = Array.isArray(sabussResponse)
+    ? sabussResponse
+    : sabussResponse && typeof sabussResponse === "object"
+      ? [sabussResponse as Record<string, unknown>]
+      : []
 
-  console.log("[v0] Sabuss rows found:", rows.length, "looking for amount:", expectedExact, "or", expectedNet, "after", createdAt.toISOString())
-
-  if (rows.length === 0) {
+  if (txList.length === 0 || sabussStatus !== "success") {
     return {
       ok: true,
       found: false,
-      message: `Sabuss responded but no transaction rows found. Raw keys: [${Object.keys(sabussData).join(", ")}]. Response: ${rawText.slice(0, 300)}`,
+      message: `Sabuss: transaction not found for reference ${reference}. Status: ${sabussStatus}. Response: ${rawText.slice(0, 200)}`,
     }
   }
 
-  for (const row of rows) {
-    // Try every common amount field name Sabuss might use
-    const rawAmt =
-      row.amount ?? row.credit ?? row.value ?? row.credited_amount ??
-      row.transaction_amount ?? row.dr_cr_amount ?? row.narration_amount ?? 0
-    const rowAmount = Math.round(Number(rawAmt))
+  // Transaction found in Sabuss
+  const tx = txList[0]
+  const txAmount = Math.round(Number(tx.amount ?? tx.credit ?? tx.value ?? 0))
+  const senderInfo = tx.sender
+    ? `Sender: ${tx.sender}`
+    : tx.narration
+      ? `Narration: ${tx.narration}`
+      : tx.recipient
+        ? `Recipient: ${tx.recipient}`
+        : ""
 
-    console.log("[v0] Row:", JSON.stringify(row).slice(0, 200), "rowAmount:", rowAmount)
-
-    // Match exact OR fee-deducted amount
-    const amountMatches = rowAmount === expectedExact || rowAmount === expectedNet
-    if (!amountMatches) continue
-
-    // Only skip rows that are clearly before the deposit was created
-    const rowDate = row.date ?? row.created_at ?? row.transaction_date ?? row.time ?? null
-    if (rowDate) {
-      const d = new Date(String(rowDate))
-      if (!isNaN(d.getTime()) && d < createdAt) continue
-    }
-
-    const senderInfo = row.sender
-      ? `Sender: ${row.sender}`
-      : row.narration
-        ? `Narration: ${row.narration}`
-        : row.account_name
-          ? `Account: ${row.account_name}`
-          : ""
-
-    if (isCompleted) {
-      return {
-        ok: true,
-        found: true,
-        message: `Transaction verified in Sabuss. Matched ₦${rowAmount.toLocaleString()}. ${senderInfo}`.trim(),
-      }
-    }
-
-    // Auto-approve pending deposit
-    await db.update(deposit).set({ status: "success" }).where(eq(deposit.reference, reference))
-    await db.update(wallet).set({
-      balance: sql`${wallet.balance} + ${depositAmount}`,
-      totalDeposited: sql`${wallet.totalDeposited} + ${depositAmount}`,
-      updatedAt: new Date(),
-    }).where(eq(wallet.userId, dep.userId))
-    await db.insert(transaction).values({
-      userId: dep.userId,
-      type: "deposit",
-      amount: String(depositAmount),
-      status: "completed",
-      reference,
-      description: `Auto-approved via admin Sabuss check. ${senderInfo}`,
-    })
-    await db.update(bankAccount).set({
-      totalDeposits: sql`${bankAccount.totalDeposits} + ${depositAmount}`,
-      depositCount: sql`${bankAccount.depositCount} + 1`,
-    }).where(eq(bankAccount.id, dep.bankAccountId))
-    revalidatePath("/admin")
+  if (isCompleted) {
     return {
       ok: true,
       found: true,
-      message: `Payment found and auto-approved! Matched ₦${rowAmount.toLocaleString()}. ${senderInfo} Wallet credited.`.trim(),
+      message: `Transaction verified in Sabuss. Amount: ₦${txAmount.toLocaleString()}. ${senderInfo}`.trim(),
     }
   }
 
-  // Not matched — show all row amounts so we can debug what Sabuss actually returns
-  const scannedAmounts = rows
-    .map((r) => Math.round(Number(r.amount ?? r.credit ?? r.value ?? r.credited_amount ?? r.transaction_amount ?? 0)))
-    .filter((n) => n > 0)
-    .join(", ")
-
+  // Auto-approve pending deposit
+  await db.update(deposit).set({ status: "success" }).where(eq(deposit.reference, reference))
+  await db.update(wallet).set({
+    balance: sql`${wallet.balance} + ${depositAmount}`,
+    totalDeposited: sql`${wallet.totalDeposited} + ${depositAmount}`,
+    updatedAt: new Date(),
+  }).where(eq(wallet.userId, dep.userId))
+  await db.insert(transaction).values({
+    userId: dep.userId,
+    type: "deposit",
+    amount: String(depositAmount),
+    status: "completed",
+    reference,
+    description: `Auto-approved via admin Sabuss check. ${senderInfo}`,
+  })
+  await db.update(bankAccount).set({
+    totalDeposits: sql`${bankAccount.totalDeposits} + ${depositAmount}`,
+    depositCount: sql`${bankAccount.depositCount} + 1`,
+  }).where(eq(bankAccount.id, dep.bankAccountId))
+  revalidatePath("/admin")
   return {
     ok: true,
-    found: false,
-    message: `Sabuss checked — ${rows.length} transaction(s) scanned, no match for ₦${expectedExact.toLocaleString()} or ₦${expectedNet.toLocaleString()} after ${createdAt.toLocaleTimeString("en-NG")}. Amounts seen: [${scannedAmounts || "none"}]`,
+    found: true,
+    message: `Payment confirmed and auto-approved! Amount: ₦${txAmount.toLocaleString()}. ${senderInfo} Wallet credited.`.trim(),
   }
 }
 

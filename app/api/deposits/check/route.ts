@@ -61,16 +61,20 @@ export async function GET(req: NextRequest) {
   }
 
   if (!acc.sabussPin) {
-    return NextResponse.json({ ok: true, status: "no_api_key", message: "No Sabuss Transaction PIN set — contact admin" })
+    return NextResponse.json({ ok: true, status: "no_api_key", message: "No Sabuss PIN set — contact admin" })
   }
 
-  // Query Sabuss for recent transactions on this account
+  // Sabuss query API: POST form-encoded with pin + reference
   let sabussData: Record<string, unknown> | null = null
   try {
+    const formBody = new URLSearchParams()
+    formBody.append("pin", acc.sabussPin)
+    formBody.append("reference", reference)
+
     const res = await fetch(`https://sabuss.com/vtu/api/query/${acc.sabussApiKey}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "credit", pin: acc.sabussPin }),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: formBody.toString(),
       signal: AbortSignal.timeout(8000),
     })
     const text = await res.text()
@@ -83,52 +87,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, status: "pending", message: "Sabuss returned invalid response" })
   }
 
-  const depositAmount = Math.round(Number(dep.amount))
-  // Check both the exact amount AND fee-deducted amount (Sabuss charges ₦50)
-  const expectedExact = depositAmount
-  const expectedNet   = depositAmount - 50
-  const createdAt = new Date(dep.createdAt)
+  const sabussStatus = String(sabussData.status ?? "").toLowerCase()
+  const sabussResponse = sabussData.response
 
-  // Collect all transaction rows from any array in the response
-  const rows: Record<string, unknown>[] = []
-  for (const v of Object.values(sabussData)) {
-    if (Array.isArray(v)) {
-      for (const item of v) {
-        if (item && typeof item === "object") rows.push(item as Record<string, unknown>)
-      }
-    }
-  }
-
-  let matchedTransaction: Record<string, unknown> | null = null
-
-  for (const row of rows) {
-    const rawAmt = row.amount ?? row.credit ?? row.value ?? row.credited_amount ?? row.transaction_amount ?? 0
-    const rowAmount = Math.round(Number(rawAmt))
-    const amountMatches = rowAmount === expectedExact || rowAmount === expectedNet
-    if (!amountMatches) continue
-
-    const rowDateRaw = row.date ?? row.created_at ?? row.transaction_date ?? row.time ?? null
-    if (rowDateRaw) {
-      const d = new Date(String(rowDateRaw))
-      if (!isNaN(d.getTime()) && d < createdAt) continue
-    }
-
-    // Name check — only soft-block if sender clearly doesn't match
-    if (dep.senderName && (row.sender || row.account_name)) {
-      const stored = dep.senderName.toLowerCase()
-      const incoming = String(row.sender ?? row.account_name ?? "").toLowerCase()
-      const parts = stored.split(/\s+/)
-      const nameOk = parts.some((p) => p.length > 1 && incoming.includes(p))
-      if (!nameOk) {
-        await db.update(deposit).set({ status: "needs_review" }).where(eq(deposit.reference, reference))
-        return NextResponse.json({ ok: true, status: "needs_review", message: "Payment found but name mismatch — flagged for admin review" })
-      }
-    }
-    matchedTransaction = row
-    break
-  }
-
-  if (!matchedTransaction) {
+  // Sabuss returns status:"error" if not found or invalid
+  if (sabussStatus !== "success") {
     return NextResponse.json({
       ok: true,
       status: "pending",
@@ -136,6 +99,27 @@ export async function GET(req: NextRequest) {
       checkedAt: new Date().toISOString(),
     })
   }
+
+  // Transaction found
+  const tx: Record<string, unknown> = Array.isArray(sabussResponse)
+    ? sabussResponse[0]
+    : (sabussResponse as Record<string, unknown>) ?? {}
+
+  const depositAmount = Math.round(Number(dep.amount))
+
+  // Soft name check
+  if (dep.senderName && (tx.sender || tx.account_name)) {
+    const stored = dep.senderName.toLowerCase()
+    const incoming = String(tx.sender ?? tx.account_name ?? "").toLowerCase()
+    const parts = stored.split(/\s+/)
+    const nameOk = parts.some((p) => p.length > 1 && incoming.includes(p))
+    if (!nameOk) {
+      await db.update(deposit).set({ status: "needs_review" }).where(eq(deposit.reference, reference))
+      return NextResponse.json({ ok: true, status: "needs_review", message: "Payment found but sender name mismatch — flagged for admin review" })
+    }
+  }
+
+  const matchedTransaction = tx
 
   // Found a match — auto-approve.
   // Always credit the full depositAmount the user intended, not the Sabuss net amount.
