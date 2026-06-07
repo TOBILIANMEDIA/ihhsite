@@ -269,6 +269,7 @@ type GameStats = {
 }
 
 type GameConfig = {
+  withdrawalCharge: number
   stakeHouseEdge: number
   stakeMin: number
   stakeMax: number
@@ -2017,6 +2018,19 @@ function GamesAdminTab({
   const [spinFilter, setSpinFilter] = useState<"all" | "win" | "lose">("all")
   const [vaultFilter, setVaultFilter] = useState<"all" | "locked" | "completed" | "broken">("all")
 
+  // Withdrawal charge state — stored in DB so changes apply to ALL pending withdrawals immediately
+  const [wChargePct, setWChargePct] = useState(String(gameConfig.withdrawalCharge))
+
+  const saveWithdrawalCharge = () => {
+    const pct = parseFloat(wChargePct)
+    if (isNaN(pct) || pct < 0 || pct > 100) { toast.error("Enter a valid percentage (0–100)"); return }
+    startTransition(async () => {
+      const res = await saveGameConfig({ withdrawalCharge: pct })
+      toast[res.ok ? "success" : "error"](res.message)
+      onAction()
+    })
+  }
+
   // Spin config state — initialised from live DB config
   const [houseEdgePct, setHouseEdgePct] = useState(String(Math.round(gameConfig.stakeHouseEdge * 100)))
   const [stakeMin, setStakeMin] = useState(String(gameConfig.stakeMin))
@@ -2171,6 +2185,37 @@ function GamesAdminTab({
             </div>
           </div>
 
+          {/* Withdrawal charge editor — changes apply instantly to pending withdrawals */}
+          <div className="rounded-2xl border border-amber-400/30 bg-card p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <p className="font-bold text-sm">Withdrawal Charge</p>
+              <span className="rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold text-amber-400">LIVE</span>
+            </div>
+            <p className="mb-3 text-[11px] text-muted-foreground">
+              Changes apply immediately — even to withdrawals already pending approval.
+            </p>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="number" min="0" max="100" step="0.5"
+                  value={wChargePct}
+                  onChange={(e) => setWChargePct(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm pr-8"
+                  placeholder={String(gameConfig.withdrawalCharge)}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+              </div>
+              <button
+                onClick={saveWithdrawalCharge}
+                disabled={pending}
+                className="flex items-center gap-1.5 rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-black disabled:opacity-60"
+              >
+                {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                Save
+              </button>
+            </div>
+          </div>
+
           {/* Live config summary */}
           <div className="rounded-2xl border border-primary/20 bg-card p-4">
             <div className="mb-3 flex items-center justify-between">
@@ -2179,6 +2224,7 @@ function GamesAdminTab({
             </div>
             <div className="flex flex-col gap-2 text-sm">
               {[
+                { label: "Withdrawal Charge", value: `${gameConfig.withdrawalCharge}%`, highlight: true },
                 { label: "House Edge (Spin)", value: `${Math.round(gameConfig.stakeHouseEdge * 100)}% lose chance` },
                 { label: "Stake Range", value: `₦${gameConfig.stakeMin.toLocaleString()} – ₦${gameConfig.stakeMax.toLocaleString()}` },
                 { label: "Multipliers", value: gameConfig.stakeMultipliers.map((m) => `${m}x`).join(", ") },
@@ -2188,11 +2234,11 @@ function GamesAdminTab({
               ].map((r) => (
                 <div key={r.label} className="flex justify-between border-b border-border/50 pb-2 last:border-0 last:pb-0">
                   <span className="text-muted-foreground">{r.label}</span>
-                  <span className="font-mono font-bold">{r.value}</span>
+                  <span className={`font-mono font-bold ${"highlight" in r && r.highlight ? "text-amber-400" : ""}`}>{r.value}</span>
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-[11px] text-muted-foreground">Edit in Stake &amp; Spin / Vault / Draw sub-tabs.</p>
+            <p className="mt-3 text-[11px] text-muted-foreground">Edit in Stake &amp; Spin / Vault / Draw sub-tabs. Withdrawal charge applies immediately to all pending withdrawals.</p>
           </div>
         </div>
       )}
