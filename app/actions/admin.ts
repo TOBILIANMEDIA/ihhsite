@@ -603,7 +603,7 @@ export async function adminDeleteTransaction(id: number) {
   await requireAdmin()
   await db.delete(transaction).where(eq(transaction.id, id))
   revalidatePath("/admin")
-  return { ok: true }
+  return { ok: true, message: "Transaction deleted" }
 }
 
 /** Admin: site-wide transaction feed, optionally filtered by type. */

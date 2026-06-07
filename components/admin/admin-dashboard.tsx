@@ -444,10 +444,20 @@ export function AdminDashboard(initial: AdminData) {
   )
 }
 
-function TransactionsTab({ items }: { items: Txn[] }) {
+function TransactionsTab({ items, onAction }: { items: Txn[]; onAction: () => void }) {
+  const [pending, startTransition] = useTransition()
   const [filter, setFilter] = useState<string>("all")
   const types = ["all", "deposit", "withdrawal", "earning", "bonus", "referral", "adjustment"]
   const filtered = filter === "all" ? items : items.filter((t) => t.type === filter)
+
+  const handleDelete = (id: number) => {
+    if (!confirm("Permanently delete this transaction? This cannot be undone.")) return
+    startTransition(async () => {
+      const res = await adminDeleteTransaction(id)
+      toast[res.ok ? "success" : "error"](res.message || "Transaction deleted")
+      onAction()
+    })
+  }
 
   const tint = (type: string) => {
     if (type === "deposit" || type === "earning" || type === "bonus" || type === "referral") return "text-success"
@@ -482,11 +492,19 @@ function TransactionsTab({ items }: { items: Txn[] }) {
         <div className="flex flex-col gap-2">
           {filtered.map((t) => (
             <div key={t.id} className="rounded-2xl border border-border bg-card p-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className={`text-xs font-bold uppercase ${tint(t.type)}`}>{t.type}</span>
                 <span className={`text-sm font-bold tabular-nums ${tint(t.type)}`}>
                   {formatNaira(Number(t.amount))}
                 </span>
+                <button
+                  onClick={() => handleDelete(t.id)}
+                  disabled={pending}
+                  className="ml-auto text-xs font-bold text-red-400 hover:text-red-300 disabled:opacity-50"
+                  title="Delete this transaction from all records"
+                >
+                  ✕
+                </button>
               </div>
               <p className="mt-1 truncate text-sm font-medium">{t.userName ?? t.userEmail ?? t.userId.slice(0, 10)}</p>
               {t.description && <p className="truncate text-xs text-muted-foreground">{t.description}</p>}
