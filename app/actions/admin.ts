@@ -272,10 +272,13 @@ export async function getRecentDeposits() {
       status: deposit.status,
       createdAt: deposit.createdAt,
       userEmail: userTable.email,
+      userId: deposit.userId,
       senderName: deposit.senderName,
       assignedBankName: deposit.assignedBankName,
       assignedAccountNumber: deposit.assignedAccountNumber,
       assignedAccountName: deposit.assignedAccountName,
+      bankAccountId: deposit.bankAccountId,
+      expiresAt: deposit.expiresAt,
     })
     .from(deposit)
     .leftJoin(userTable, eq(deposit.userId, userTable.id))
@@ -1075,6 +1078,118 @@ export async function getAdminData() {
       getGameConfig(),
     ])
   return { stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds, spins, vaults, drawSlots, gameStats, gameConfig }
+}
+
+// ── Sabuss Deposit Check (Admin) ──────────────────────────────────────────────
+
+/**
+ * Admin-facing Sabuss check — queries the Sabuss API for the deposit's account
+ * and returns whether the transaction exists, with a human-readable message.
+ * Works for both pending AND already-approved deposits (verify mode).
+ */
+export async function adminCheckDeposit(reference: string) {
+  await requireAdmin()
+
+  const [dep] = await db
+    .select()
+    .from(deposit)
+    .where(eq(deposit.reference, reference))
+
+  if (!dep) return { ok: false, message: "Deposit not found" }
+
+  const isCompleted = dep.status === "success" || dep.status === "approved"
+
+  if (!dep.bankAccountId) {
+    return { ok: false, message: "No bank account assigned to this deposit" }
+  }
+
+  const [acc] = await db
+    .select()
+    .from(bankAccount)
+    .where(eq(bankAccount.id, dep.bankAccountId))
+
+  if (!acc?.sabussApiKey) {
+    return { ok: false, message: "No Sabuss API key on this account — manual only" }
+  }
+
+  let sabussData: Record<string, unknown> | null = null
+  try {
+    const res = await fetch(`https://sabuss.com/vtu/api/query/${acc.sabussApiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "credit" }),
+      signal: AbortSignal.timeout(10000),
+    })
+    sabussData = await res.json()
+  } catch {
+    return { ok: false, message: "Could not reach Sabuss API — check internet or API key" }
+  }
+
+  const depositAmount = Math.round(Number(dep.amount))
+  const expectedAmount = depositAmount - 50 // Sabuss deducts ₦50 fee
+  const createdAt = new Date(dep.createdAt)
+
+  const rows = Array.isArray(sabussData?.response)
+    ? (sabussData.response as Record<string, unknown>[])
+    : Array.isArray(sabussData?.data)
+      ? (sabussData.data as Record<string, unknown>[])
+      : null
+
+  if (!rows || rows.length === 0) {
+    return {
+      ok: true,
+      found: false,
+      message: `Sabuss checked — no transactions found on this account yet. (Looking for ₦${expectedAmount.toLocaleString()} credited after ${createdAt.toLocaleTimeString("en-NG")})`,
+    }
+  }
+
+  for (const row of rows) {
+    const rowAmount = Math.round(Number(row.amount ?? row.credit ?? row.value ?? 0))
+    const rowDate = row.date ? new Date(String(row.date)) : null
+    if (rowAmount !== expectedAmount) continue
+    if (rowDate && rowDate < createdAt) continue
+
+    const senderInfo = row.sender ? `Sender: ${row.sender}` : ""
+    if (isCompleted) {
+      return {
+        ok: true,
+        found: true,
+        message: `Transaction verified in Sabuss. Amount: ₦${rowAmount.toLocaleString()}. ${senderInfo}`,
+      }
+    }
+
+    // Auto-approve if still pending
+    await db.update(deposit).set({ status: "success" }).where(eq(deposit.reference, reference))
+    await db.update(wallet).set({
+      balance: sql`${wallet.balance} + ${depositAmount}`,
+      totalDeposited: sql`${wallet.totalDeposited} + ${depositAmount}`,
+      updatedAt: new Date(),
+    }).where(eq(wallet.userId, dep.userId))
+    await db.insert(transaction).values({
+      userId: dep.userId,
+      type: "deposit",
+      amount: String(depositAmount),
+      status: "completed",
+      reference,
+      description: `Auto-approved via admin Sabuss check. Sender: ${row.sender ?? "unknown"}`,
+    })
+    await db.update(bankAccount).set({
+      totalDeposits: sql`${bankAccount.totalDeposits} + ${depositAmount}`,
+      depositCount: sql`${bankAccount.depositCount} + 1`,
+    }).where(eq(bankAccount.id, dep.bankAccountId))
+    revalidatePath("/admin")
+    return {
+      ok: true,
+      found: true,
+      message: `Payment found and auto-approved! Amount: ₦${rowAmount.toLocaleString()}. ${senderInfo} Wallet credited.`,
+    }
+  }
+
+  return {
+    ok: true,
+    found: false,
+    message: `Sabuss checked — no matching ₦${expectedAmount.toLocaleString()} credit found after ${createdAt.toLocaleTimeString("en-NG")}. ${rows.length} transaction(s) scanned.`,
+  }
 }
 
 // ── Sabuss Webhook Test ───────────────────────────────────────────────────────
