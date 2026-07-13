@@ -14,7 +14,7 @@ import { Logo } from "@/components/logo"
 import { cn } from "@/lib/utils"
 
 type Props = {
-  name: string; email: string; phone: string; role: string
+  name: string; email: string; phone: string; role: string; inviteCode: string
   balance: number; totalDeposited: number; totalEarned: number; referralEarnings: number
 }
 
@@ -64,7 +64,7 @@ export function ProfileView(props: Props) {
 
   async function copyInvite() {
     try {
-      await navigator.clipboard.writeText(SITE.inviteCode)
+      await navigator.clipboard.writeText(props.inviteCode)
       setCopied(true)
       toast.success("Invite code copied")
       setTimeout(() => setCopied(false), 2000)
@@ -110,7 +110,7 @@ export function ProfileView(props: Props) {
         >
           <div className="flex flex-col items-start">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Invite Code</span>
-            <span className="text-sm font-black text-primary">{SITE.inviteCode}</span>
+            <span className="text-sm font-black text-primary">{props.inviteCode}</span>
           </div>
           {copied ? <CheckCheck className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
         </button>
