@@ -14,7 +14,7 @@ export function HeroInfo({ isPromoter = false }: { isPromoter?: boolean }) {
           Returns Paid Every 24 Hours
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Withdrawal window: {SITE.withdrawalHours}
+          {SITE.withdrawalHours} · Processed within {SITE.withdrawalProcessingTime}
         </p>
       </div>
 
@@ -33,9 +33,9 @@ export function HeroInfo({ isPromoter = false }: { isPromoter?: boolean }) {
         />
         <Stat
           icon={Users}
-          tint={isPromoter ? "text-amber-400" : "text-primary"}
-          label={isPromoter ? "Referral L1 (Promoter)" : "Referral L1"}
-          value={`${level1Rate}%`}
+          tint="text-primary"
+          label="Referral L1"
+          value={`${SITE.referralLevel1}%`}
         />
         <Stat
           icon={Users}

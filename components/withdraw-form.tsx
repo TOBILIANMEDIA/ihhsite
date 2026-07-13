@@ -281,7 +281,8 @@ export function WithdrawForm({ balance }: { balance: number }) {
         <div className="flex items-start gap-2.5 rounded-xl border border-amber-400/25 bg-amber-400/8 px-3.5 py-3">
           <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
           <p className="text-xs leading-relaxed text-foreground/80">
-            Processed {SITE.withdrawalHours}. A{" "}
+            Available {SITE.withdrawalHours} · Processed within{" "}
+            <span className="font-semibold">{SITE.withdrawalProcessingTime}</span>. A{" "}
             <span className="font-semibold">{SITE.withdrawalCharge}% fee</span> applies. Min{" "}
             <span className="font-semibold">{formatNaira(SITE.minWithdrawal)}</span>.
           </p>

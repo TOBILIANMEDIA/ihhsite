@@ -22,14 +22,14 @@ const items = [
   {
     icon: Users,
     title: 'Referral Bonus',
-    desc: `L1: ${SITE.referralLevel1}% (Promoters: ${SITE.promoterLevel1}%) • L2: ${SITE.referralLevel2}%`,
+    desc: `L1: ${SITE.referralLevel1}% • L2: ${SITE.referralLevel2}%`,
     tint: 'text-success',
     bg: 'bg-success/15',
   },
   {
     icon: Clock,
     title: 'Withdrawal Hours',
-    desc: SITE.withdrawalHours,
+    desc: `${SITE.withdrawalHours} · Processed within ${SITE.withdrawalProcessingTime}`,
     tint: 'text-sky-400',
     bg: 'bg-sky-400/15',
   },
