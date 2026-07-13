@@ -167,14 +167,18 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-sm font-bold text-primary-foreground transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
+            className="group relative mt-2 flex w-full items-center justify-center overflow-hidden rounded-2xl bg-primary py-4 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-200 hover:shadow-primary/40 hover:-translate-y-0.5 active:scale-[0.98] active:translate-y-0 disabled:opacity-50 disabled:shadow-none disabled:translate-y-0"
           >
+            {/* Subtle sheen sweep on hover */}
+            <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-500 group-hover:translate-x-full" />
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <ArrowRight className="h-4 w-4" />
+              <span className="flex items-center gap-2">
+                {mode === "sign-in" ? "Sign In to Account" : "Create My Account"}
+                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+              </span>
             )}
-            {mode === "sign-in" ? "Sign In" : "Create Account"}
           </button>
         </form>
 

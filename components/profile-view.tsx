@@ -25,16 +25,31 @@ export function ProfileView(props: Props) {
 
   const initials = props.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase() || "CI"
 
-  const menu = [
-    { label: "Transactions",     icon: ListOrdered,    href: "/transactions",  tint: "text-primary"      },
-    { label: "Deposit History",  icon: Clock,          href: "/deposits",      tint: "text-muted-foreground" },
-    { label: "Deposit",          icon: ArrowDownToLine, href: "/topup",        tint: "text-success"      },
-    { label: "Withdraw",         icon: ArrowUpFromLine, href: "/withdraw",     tint: "text-amber-400"    },
-    { label: "Gift Code",        icon: Gift,           href: "/gift-code",     tint: "text-primary"      },
-    { label: "My Team",          icon: Users,          href: "/team",          tint: "text-sky-400"      },
-    { label: "Support",          icon: Headphones,     href: SITE.telegramGroup, tint: "text-muted-foreground" },
+  const menuGroups = [
+    {
+      title: "Wallet",
+      items: [
+        { label: "Deposit",         icon: ArrowDownToLine, href: "/topup",      tint: "text-success",   bg: "bg-success/10"   },
+        { label: "Withdraw",        icon: ArrowUpFromLine, href: "/withdraw",   tint: "text-amber-500", bg: "bg-amber-400/10" },
+        { label: "Transactions",    icon: ListOrdered,     href: "/transactions",tint: "text-primary",  bg: "bg-primary/10"   },
+        { label: "Deposit History", icon: Clock,           href: "/deposits",   tint: "text-muted-foreground", bg: "bg-secondary"  },
+      ],
+    },
+    {
+      title: "Community",
+      items: [
+        { label: "My Team",   icon: Users,      href: "/team",            tint: "text-sky-400",   bg: "bg-sky-400/10"  },
+        { label: "Gift Code", icon: Gift,        href: "/gift-code",      tint: "text-primary",   bg: "bg-primary/10"  },
+        { label: "Support",   icon: Headphones,  href: SITE.telegramGroup, tint: "text-muted-foreground", bg: "bg-secondary" },
+      ],
+    },
     ...(props.role === "admin"
-      ? [{ label: "Admin Console", icon: ShieldCheck, href: "/admin", tint: "text-destructive" }]
+      ? [{
+          title: "Admin",
+          items: [
+            { label: "Admin Console", icon: ShieldCheck, href: "/admin", tint: "text-destructive", bg: "bg-destructive/10" },
+          ],
+        }]
       : []),
   ]
 
@@ -115,25 +130,32 @@ export function ProfileView(props: Props) {
         ))}
       </section>
 
-      {/* Menu */}
-      <section className="overflow-hidden rounded-2xl border border-border/60 bg-card">
-        {menu.map((item, i) => (
-          <button
-            key={item.label}
-            onClick={() => item.href.startsWith("http") ? window.open(item.href, "_blank") : router.push(item.href)}
-            className={cn(
-              "flex w-full items-center gap-3 px-4 py-3.5 text-left transition-all hover:bg-secondary/60",
-              i !== menu.length - 1 && "border-b border-border/40",
-            )}
-          >
-            <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary/80", item.tint)}>
-              <item.icon className="h-4 w-4" />
-            </span>
-            <span className="flex-1 text-sm font-medium text-foreground">{item.label}</span>
-            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
-          </button>
-        ))}
-      </section>
+      {/* Grouped menu */}
+      {menuGroups.map((group) => (
+        <section key={group.title}>
+          <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            {group.title}
+          </p>
+          <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
+            {group.items.map((item, i) => (
+              <button
+                key={item.label}
+                onClick={() => item.href.startsWith("http") ? window.open(item.href, "_blank") : router.push(item.href)}
+                className={cn(
+                  "flex w-full items-center gap-3 px-4 py-3.5 text-left transition-all hover:bg-secondary/50 active:bg-secondary/70",
+                  i !== group.items.length - 1 && "border-b border-border/40",
+                )}
+              >
+                <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-xl", item.bg, item.tint)}>
+                  <item.icon className="h-4 w-4" />
+                </span>
+                <span className="flex-1 text-sm font-medium text-foreground">{item.label}</span>
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40" />
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
 
       {/* Sign out */}
       <button

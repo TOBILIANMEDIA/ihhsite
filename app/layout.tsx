@@ -92,7 +92,7 @@ export default async function RootLayout({
         {/* Blocking script: apply stored theme class before first paint to avoid flash */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('cil-theme')||'dark';document.documentElement.classList.add(t);}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem('cil-theme')||'light';document.documentElement.classList.add(t);}catch(e){}})();`,
           }}
         />
         <ThemeProvider>
