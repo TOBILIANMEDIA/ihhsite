@@ -1,6 +1,6 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Space_Grotesk } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { getBoolSetting, SETTING_KEYS } from '@/app/actions/settings'
 import { getSession } from '@/lib/session'
@@ -8,23 +8,26 @@ import { db } from '@/lib/db'
 import { profile, investment } from '@/lib/db/schema'
 import { eq, count } from 'drizzle-orm'
 import { headers } from 'next/headers'
+import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
-const geistSans = Geist({
+const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
-  variable: '--font-geist-sans',
-})
-
-const geistMono = Geist_Mono({
-  subsets: ['latin'],
-  variable: '--font-geist-mono',
+  variable: '--font-space-grotesk',
+  weight: ['300', '400', '500', '600', '700'],
 })
 
 export const metadata: Metadata = {
-  title: 'incomehh — Investment Platform',
+  title: 'C.I.Limited — Construction Investment',
   description:
-    'incomehh (IHH) — daily income drops every 24 hours. Topup, withdraw, invite, and grow your earnings.',
+    'C.I.Limited (C.I.L) — Build your wealth through construction investment. Daily returns, transparent projects, real growth.',
   generator: 'v0.app',
+  openGraph: {
+    title: 'C.I.Limited — Construction Investment',
+    description: 'Build your wealth through construction investment with C.I.L.',
+    siteName: 'C.I.Limited',
+    type: 'website',
+  },
   icons: {
     icon: '/favicon.png',
     apple: '/logo.png',
@@ -32,7 +35,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#1a1730',
+  themeColor: '#141618',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -84,31 +87,38 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} bg-background`}>
+    <html lang="en" className={`${spaceGrotesk.variable} bg-background`} suppressHydrationWarning>
       <body className="font-sans antialiased">
-        {children}
-        <Toaster theme="dark" position="top-center" richColors />
-        {process.env.NODE_ENV === 'production' && <Analytics />}
-
-        {/* Site freeze overlay — covers everything, non-admins cannot interact */}
-        {showFreeze && (
-          <div
-            style={{ position: "fixed", inset: 0, zIndex: 9999, backdropFilter: "blur(6px)", backgroundColor: "rgba(0,0,0,0.85)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px", padding: "24px" }}
-          >
-            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
+        {/* Blocking script: apply stored theme class before first paint to avoid flash */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('cil-theme')||'light';document.documentElement.classList.add(t);}catch(e){}})();`,
+          }}
+        />
+        <ThemeProvider>
+          {children}
+          <Toaster position="top-center" richColors />
+          {process.env.NODE_ENV === 'production' && <Analytics />}
+          {/* Site freeze overlay */}
+          {showFreeze && (
+            <div
+              style={{ position: "fixed", inset: 0, zIndex: 9999, backdropFilter: "blur(6px)", backgroundColor: "rgba(0,0,0,0.85)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px", padding: "24px" }}
+            >
+              <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <p style={{ color: "#fff", fontWeight: 900, fontSize: "1.1rem", margin: 0 }}>Service Temporarily Unavailable</p>
+                <p style={{ color: "#9ca3af", fontSize: "0.85rem", marginTop: "8px", lineHeight: 1.5 }}>
+                  We are performing maintenance. Please check back shortly.
+                </p>
+              </div>
             </div>
-            <div style={{ textAlign: "center" }}>
-              <p style={{ color: "#fff", fontWeight: 900, fontSize: "1.1rem", margin: 0 }}>Service Temporarily Unavailable</p>
-              <p style={{ color: "#9ca3af", fontSize: "0.85rem", marginTop: "8px", lineHeight: 1.5 }}>
-                We are performing maintenance. Please check back shortly.
-              </p>
-            </div>
-          </div>
-        )}
+          )}
+        </ThemeProvider>
       </body>
     </html>
   )

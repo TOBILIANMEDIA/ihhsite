@@ -174,133 +174,126 @@ function TopupContent() {
   // Step 2: Payment Confirmation
   if (step === 'confirm' && bankAccount) {
     return (
-      <main className="mx-auto flex max-w-md flex-col">
+      <main className="mx-auto flex max-w-md flex-col gap-0">
         {/* Header */}
-        <div className="flex items-center gap-3 bg-card px-4 py-4">
+        <div className="flex items-center gap-3 border-b border-border/60 bg-card px-4 py-3.5">
           <button
             onClick={handleBack}
             aria-label="Back"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-foreground"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-secondary/60 text-muted-foreground transition-all hover:text-foreground active:scale-95"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4" />
           </button>
-          <h1 className="flex-1 text-center text-lg font-bold">Payment Confirmation</h1>
-          <div className="w-10" />
+          <div className="flex-1">
+            <h1 className="text-base font-bold">Payment Details</h1>
+            <p className="text-[11px] text-muted-foreground">Transfer funds to the account below</p>
+          </div>
+          {/* Amount badge */}
+          <span className="rounded-xl border border-primary/25 bg-primary/10 px-3 py-1.5 text-sm font-bold text-primary tabular-nums">
+            {formatNaira(amount)}
+          </span>
         </div>
 
-        {/* Content */}
-        <div className="flex flex-col gap-4 bg-background p-4">
-          {/* Instructions */}
-          <p className="text-center text-sm text-foreground">
-            Kindly send <span className="font-bold text-primary">{formatNaira(amount)}</span> to the account details below.
-          </p>
-
-          {/* Warning Box */}
-          <div className="rounded-lg border-l-4 border-destructive bg-destructive/10 p-4">
-            <p className="text-center text-sm text-destructive">
-              <span className="font-bold">Important:</span> Send exactly {formatNaira(amount)}. Sending a different amount may result in loss of funds.
+        <div className="flex flex-col gap-3 bg-background p-4">
+          {/* Alert */}
+          <div className="flex items-start gap-3 rounded-xl border border-amber-400/25 bg-amber-400/8 px-3.5 py-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+            <p className="text-xs leading-relaxed text-foreground/80">
+              Send <span className="font-bold text-foreground">exactly {formatNaira(amount)}</span>. A different amount may delay or fail verification.
             </p>
           </div>
 
-          {/* Bank Details */}
-          <div className="flex flex-col gap-3">
-            {/* Deposit Amount */}
-            <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
-              <span className="text-sm text-muted-foreground">Deposit Amount</span>
-              <span className="text-lg font-bold text-primary">{formatNaira(amount)}</span>
-            </div>
-
-            {/* Bank Name */}
-            <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
-              <span className="text-sm text-muted-foreground">Bank Name</span>
-              <span className="font-bold text-foreground">{bankAccount.bankName}</span>
-            </div>
-
-            {/* Account Name */}
-            <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
-              <span className="text-sm text-muted-foreground">Account Name</span>
-              <span className="text-right font-bold text-foreground">{bankAccount.accountName}</span>
-            </div>
-
-            {/* Account Number with Copy */}
-            <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
-              <span className="text-sm text-muted-foreground">Account Number</span>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-primary">{bankAccount.accountNumber}</span>
-                <button
-                  onClick={handleCopyAccount}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors hover:bg-primary/20"
-                  aria-label="Copy account number"
-                >
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </button>
+          {/* Bank details card */}
+          <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
+            {[
+              { label: 'Bank',    value: bankAccount.bankName,      mono: false },
+              { label: 'Account Name', value: bankAccount.accountName, mono: false },
+            ].map((row, i) => (
+              <div key={row.label} className={`flex items-center justify-between px-4 py-3.5 ${i !== 0 ? 'border-t border-border/40' : ''}`}>
+                <span className="text-xs text-muted-foreground">{row.label}</span>
+                <span className="text-sm font-semibold text-foreground">{row.value}</span>
               </div>
+            ))}
+            {/* Account number with copy */}
+            <div className="flex items-center justify-between border-t border-border/40 px-4 py-3.5">
+              <span className="text-xs text-muted-foreground">Account Number</span>
+              <button
+                onClick={handleCopyAccount}
+                className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/8 px-3 py-1.5 transition-all hover:bg-primary/15 active:scale-95"
+              >
+                <span className="font-mono text-sm font-bold text-primary tracking-widest">{bankAccount.accountNumber}</span>
+                {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5 text-primary" />}
+              </button>
             </div>
           </div>
 
-          {/* Sender Name Input (Optional) */}
-          <div className="rounded-xl border border-border bg-card p-4">
-            <label className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
-              <User className="h-4 w-4 text-muted-foreground" />
-              Sender Name <span className="text-xs text-muted-foreground">(Recommended)</span>
+          {/* Sender name */}
+          <div className="rounded-2xl border border-border/60 bg-card px-4 py-4">
+            <label className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-foreground">
+              <User className="h-3.5 w-3.5 text-muted-foreground" />
+              Your Sender Name
+              <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Recommended</span>
             </label>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Enter the name on your bank account to speed up verification
-            </p>
+            <p className="mb-2.5 text-[11px] text-muted-foreground">Helps us verify your transfer faster</p>
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="e.g. John Doe"
+                placeholder="Name on your bank account"
                 value={senderName}
                 onChange={(e) => setSenderName(e.target.value)}
-                className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
+                className="flex-1 rounded-xl border border-border/60 bg-secondary/50 px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-primary/60 transition-colors"
               />
               <button
                 onClick={handleSaveSenderName}
                 disabled={!senderName.trim() || savingSenderName}
-                className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-40 active:scale-95"
               >
                 {savingSenderName ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
               </button>
             </div>
           </div>
 
-          {/* Expiry Notice */}
-          {expiryTime && (
-            <p className="text-center text-sm text-muted-foreground">
-              Please note that payment expires on{' '}
-              <span className="font-medium text-foreground">{formatExpiry(expiryTime)}</span>
-            </p>
-          )}
+          {/* Expiry + reference */}
+          <div className="flex flex-col gap-1.5 rounded-xl border border-border/40 bg-secondary/30 px-4 py-3">
+            {expiryTime && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Expires</span>
+                <span className="font-medium text-foreground">{formatExpiry(expiryTime)}</span>
+              </div>
+            )}
+            {depositRef && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Reference</span>
+                <span className="font-mono text-foreground">{depositRef}</span>
+              </div>
+            )}
+          </div>
 
-          {/* Reference */}
-          {depositRef && (
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-center text-xs text-muted-foreground">
-                Reference: <span className="font-mono font-medium text-foreground">{depositRef}</span>
-              </p>
-            </div>
-          )}
-
-          {/* Done Button */}
+          {/* CTA */}
           <button
             onClick={handleMarkAsPaid}
             disabled={markingPaid}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            className="group relative mt-1 flex w-full items-center justify-center overflow-hidden rounded-2xl bg-primary py-4 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 hover:shadow-primary/35 active:translate-y-0 active:scale-[0.98] disabled:opacity-60 disabled:shadow-none disabled:translate-y-0"
           >
-            {markingPaid && <Loader2 className="h-5 w-5 animate-spin" />}
-            I&apos;ve Made the Transfer
+            <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-500 group-hover:translate-x-full" />
+            {markingPaid ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <span className="flex items-center gap-2">
+                I&apos;ve Made the Transfer
+                <ShieldCheck className="h-4 w-4" />
+              </span>
+            )}
           </button>
 
-          <p className="flex items-center justify-center gap-2 text-center text-xs text-muted-foreground">
-            <ShieldCheck className="h-4 w-4 text-success" />
-            Payment will be processed within 0-15 minutes
+          <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
+            <ShieldCheck className="h-3.5 w-3.5 text-success" />
+            Funds reflect within 0–15 minutes after confirmation
           </p>
 
-          {/* View deposit history link */}
           <Link
             href="/deposits"
-            className="flex items-center justify-center gap-1.5 text-center text-xs text-primary underline"
+            className="flex items-center justify-center gap-1 text-center text-xs font-medium text-primary hover:underline"
           >
             <Clock className="h-3.5 w-3.5" />
             View deposit history
@@ -409,7 +402,7 @@ function TopupContent() {
 
       <p className="flex items-center justify-center gap-2 text-center text-xs text-muted-foreground">
         <ShieldCheck className="h-4 w-4 text-success" />
-        Manual bank transfer - Funds reflect after admin confirmation
+        Secure payment — funds reflect within 0–15 minutes
       </p>
     </main>
   )

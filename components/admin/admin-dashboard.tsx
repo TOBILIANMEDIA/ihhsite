@@ -42,6 +42,7 @@ import {
   ChevronDown,
   Zap,
   Unlock,
+  Search,
 } from "lucide-react"
 import { toast } from "sonner"
 import { SITE, formatNaira } from "@/lib/plans"
@@ -52,6 +53,7 @@ import {
   createGiftCode,
   processAllIncome,
   runReinvestBackfillAll,
+  resetPlatformData,
   addBankAccount,
   updateBankAccount,
   deleteBankAccount,
@@ -82,6 +84,7 @@ import {
   adminDeleteTransaction,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
+import { PlanSlotsPanel } from "@/components/admin/plan-slots-panel"
 
 const POLL_INTERVAL = 20_000 // 20 seconds
 
@@ -344,8 +347,11 @@ type AdminData = {
   gameConfig: GameConfig
 }
 
-export function AdminDashboard(initial: AdminData) {
-  const [data, setData] = useState<AdminData>(initial)
+type SlotRow = { planId: number; totalSlots: number | null; soldSlots: number; isActive: boolean }
+
+export function AdminDashboard(initial: AdminData & { planSlots?: SlotRow[] }) {
+  const { planSlots: initialPlanSlots, ...initialData } = initial
+  const [data, setData] = useState<AdminData>(initialData as AdminData)
   const [tab, setTab] = useState<Tab>("Overview")
   const [refreshing, setRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -430,7 +436,7 @@ export function AdminDashboard(initial: AdminData) {
           ))}
         </div>
 
-        {tab === "Overview" && <Overview stats={stats} controls={controls} onAction={() => refresh()} />}
+        {tab === "Overview" && <Overview stats={stats} controls={controls} onAction={() => refresh()} planSlots={initialPlanSlots ?? []} />}
         {tab === "Financials" && <FinancialsTab data={financials} />}
         {tab === "Games" && <GamesAdminTab spins={spins} vaults={vaults} drawSlots={drawSlots} drawRounds={drawRounds} gameStats={gameStats} gameConfig={gameConfig} onAction={() => refresh()} />}
         {tab === "Investments" && <InvestmentsTab items={investments} onAction={() => refresh()} />}
@@ -451,8 +457,20 @@ export function AdminDashboard(initial: AdminData) {
 function TransactionsTab({ items, onAction }: { items: Txn[]; onAction: () => void }) {
   const [pending, startTransition] = useTransition()
   const [filter, setFilter] = useState<string>("all")
+  const [search, setSearch] = useState("")
   const types = ["all", "deposit", "withdrawal", "earning", "bonus", "referral", "adjustment"]
-  const filtered = filter === "all" ? items : items.filter((t) => t.type === filter)
+  const filtered = items
+    .filter((t) => filter === "all" || t.type === filter)
+    .filter((t) => {
+      if (!search.trim()) return true
+      const q = search.toLowerCase()
+      return (
+        (t.userName ?? "").toLowerCase().includes(q) ||
+        (t.userEmail ?? "").toLowerCase().includes(q) ||
+        (t.description ?? "").toLowerCase().includes(q) ||
+        String(t.amount).includes(q)
+      )
+    })
 
   const handleDelete = (id: number) => {
     if (!confirm("Permanently delete this transaction? This cannot be undone.")) return
@@ -476,6 +494,16 @@ function TransactionsTab({ items, onAction }: { items: Txn[]; onAction: () => vo
         <Receipt className="h-4 w-4 text-primary" />
         <h3 className="text-sm font-bold">Live Transactions</h3>
         <span className="ml-auto text-xs text-muted-foreground">{filtered.length} shown</span>
+      </div>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by user, email, description, amount..."
+          className="w-full rounded-xl border border-border bg-secondary/50 py-2.5 pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-primary/60 transition-colors"
+        />
       </div>
       <div className="no-scrollbar flex gap-2 overflow-x-auto">
         {types.map((t) => (
@@ -524,7 +552,7 @@ function TransactionsTab({ items, onAction }: { items: Txn[]; onAction: () => vo
   )
 }
 
-function Overview({ stats, controls, onAction }: { stats: Stats; controls: Controls; onAction: () => void }) {
+function Overview({ stats, controls, onAction, planSlots }: { stats: Stats; controls: Controls; onAction: () => void; planSlots: SlotRow[] }) {
   const [pending, startTransition] = useTransition()
   const [siteFrozen, setSiteFrozenState] = useState(controls.siteFrozen)
   const [depositsPaused, setDepPaused] = useState(controls.depositsPaused)
@@ -553,6 +581,18 @@ function Overview({ stats, controls, onAction }: { stats: Stats; controls: Contr
       const res = await runReinvestBackfillAll()
       toast[res.ok ? "success" : "error"](res.message)
       onAction()
+    })
+  }
+
+  const [resetConfirmText, setResetConfirmText] = useState("")
+  const [showResetPanel, setShowResetPanel] = useState(false)
+  const [resetPending, startResetTransition] = useTransition()
+
+  function handleResetPlatform() {
+    startResetTransition(async () => {
+      const res = await resetPlatformData(resetConfirmText)
+      toast[res.ok ? "success" : "error"](res.message)
+      if (res.ok) { setShowResetPanel(false); setResetConfirmText(""); onAction() }
     })
   }
 
@@ -621,6 +661,48 @@ function Overview({ stats, controls, onAction }: { stats: Stats; controls: Contr
         {backfillPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
         Backfill Reinvest Earnings
       </button>
+
+      {/* Plan Slot Control */}
+      <PlanSlotsPanel initialSlots={planSlots} />
+
+  {/* Platform Data Reset */}
+      <div className="rounded-2xl border border-destructive/30 bg-card p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-destructive">Platform Data Reset</h3>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Clears all investments, wallets &amp; transactions. Keeps user credentials &amp; bank accounts.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowResetPanel((v) => !v)}
+            className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs font-bold text-destructive transition-all hover:bg-destructive/20"
+          >
+            {showResetPanel ? "Cancel" : "Reset"}
+          </button>
+        </div>
+        {showResetPanel && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-muted-foreground">
+              Type <span className="font-mono font-bold text-destructive">RESET C.I.L</span> to confirm:
+            </p>
+            <input
+              value={resetConfirmText}
+              onChange={(e) => setResetConfirmText(e.target.value)}
+              placeholder="RESET C.I.L"
+              className="rounded-lg border border-destructive/30 bg-secondary/60 px-3 py-2 text-sm font-mono outline-none focus:border-destructive/60"
+            />
+            <button
+              onClick={handleResetPlatform}
+              disabled={resetPending || resetConfirmText !== "RESET C.I.L"}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive py-2.5 text-sm font-bold text-white transition-all hover:opacity-90 disabled:opacity-40"
+            >
+              {resetPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Confirm Platform Reset
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="rounded-2xl border border-border bg-card p-4">
         <div className="flex items-center gap-2">
@@ -722,6 +804,20 @@ function Overview({ stats, controls, onAction }: { stats: Stats; controls: Contr
 
 function Withdrawals({ items, onAction }: { items: Withdrawal[]; onAction: () => void }) {
   const [pending, startTransition] = useTransition()
+  const [search, setSearch] = useState("")
+
+  const filtered = items.filter((w) => {
+    if (!search.trim()) return true
+    const q = search.toLowerCase()
+    return (
+      (w.userName ?? "").toLowerCase().includes(q) ||
+      (w.userEmail ?? "").toLowerCase().includes(q) ||
+      (w.accountName ?? "").toLowerCase().includes(q) ||
+      (w.accountNumber ?? "").includes(q) ||
+      (w.bankName ?? "").toLowerCase().includes(q) ||
+      String(w.amount).includes(q)
+    )
+  })
 
   function act(id: number, kind: "approve" | "reject") {
     startTransition(async () => {
@@ -741,7 +837,18 @@ function Withdrawals({ items, onAction }: { items: Withdrawal[]; onAction: () =>
 
   return (
     <div className="flex flex-col gap-3">
-      {items.map((w) => (
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by user, bank, account number, amount..."
+          className="w-full rounded-xl border border-border bg-secondary/50 py-2.5 pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-primary/60 transition-colors"
+        />
+      </div>
+      {filtered.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">No results</p>}
+      {filtered.map((w) => (
         <div key={w.id} className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-start justify-between">
             <div>
@@ -793,8 +900,11 @@ function Withdrawals({ items, onAction }: { items: Withdrawal[]; onAction: () =>
   )
 }
 
+
+
 function UsersTab({ items }: { items: AdminUser[] }) {
   const [pending, startTransition] = useTransition()
+  const [userSearch, setUserSearch] = useState("")
   const [editing, setEditing] = useState<string | null>(null)
   const [amount, setAmount] = useState("")
   const [note, setNote] = useState("")
@@ -851,11 +961,32 @@ function UsersTab({ items }: { items: AdminUser[] }) {
     })
   }
 
+  const filteredUsers = items.filter((u) => {
+    if (!userSearch.trim()) return true
+    const q = userSearch.toLowerCase()
+    return (
+      (u.name ?? "").toLowerCase().includes(q) ||
+      (u.email ?? "").toLowerCase().includes(q)
+    )
+  })
+
   if (items.length === 0) return <Empty label="No users" />
 
   return (
     <div className="flex flex-col gap-3">
-      {items.map((u) => (
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          value={userSearch}
+          onChange={(e) => setUserSearch(e.target.value)}
+          placeholder="Search by name or email..."
+          className="w-full rounded-xl border border-border bg-secondary/50 py-2.5 pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-primary/60 transition-colors"
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">{filteredUsers.length} of {items.length} users</p>
+      {filteredUsers.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">No results</p>}
+      {filteredUsers.map((u) => (
         <div key={u.id} className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0">
@@ -1457,10 +1588,35 @@ function DepositCard({
 }
 
 function DepositsTab({ items, onAction }: { items: Deposit[]; onAction: () => void }) {
+  const [search, setSearch] = useState("")
+
+  const filtered = items.filter((dep) => {
+    if (!search.trim()) return true
+    const q = search.toLowerCase()
+    return (
+      (dep.userName ?? "").toLowerCase().includes(q) ||
+      (dep.userEmail ?? "").toLowerCase().includes(q) ||
+      (dep.reference ?? "").toLowerCase().includes(q) ||
+      String(dep.amount).includes(q)
+    )
+  })
+
   if (items.length === 0) return <Empty label="No deposits" />
+
   return (
     <div className="flex flex-col gap-3">
-      {items.map((dep) => (
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by user, email, reference, amount..."
+          className="w-full rounded-xl border border-border bg-secondary/50 py-2.5 pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-primary/60 transition-colors"
+        />
+      </div>
+      {filtered.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">No results</p>}
+      {filtered.map((dep) => (
         <DepositCard key={dep.id} dep={dep} onAction={onAction} />
       ))}
     </div>
@@ -2591,7 +2747,7 @@ function GamesAdminTab({
   )
 }
 
-// ── Financials Tab ────────────────────────────────────────────────────────────
+// ── Financials Tab ───────────����────────────────────────────────────────────────
 function FinancialsTab({ data }: { data: Financials }) {
   const cards = [
     { label: "Withdrawal Charges (Revenue)", value: data.withdrawalCharges, color: "text-success" },

@@ -290,6 +290,18 @@ export const lockVault = pgTable("lock_vault", {
   completedAt: timestamp("completedAt"),
 })
 
+// Per-plan slot control — admin sets totalSlots, system tracks soldSlots.
+// When soldSlots >= totalSlots the plan shows as "Sold Out" and cannot be purchased.
+// planId maps to PLANS[].id. A null totalSlots means unlimited (default).
+export const planSlot = pgTable("plan_slot", {
+  id: serial("id").primaryKey(),
+  planId: integer("planId").notNull().unique(),
+  totalSlots: integer("totalSlots"),          // null = unlimited
+  soldSlots: integer("soldSlots").notNull().default(0),
+  isActive: boolean("isActive").notNull().default(true),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+})
+
 export const promoterCode = pgTable("promoter_code", {
   id: serial("id").primaryKey(),
   code: text("code").notNull().unique(),

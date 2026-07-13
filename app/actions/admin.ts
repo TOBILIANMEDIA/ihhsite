@@ -19,6 +19,7 @@ import {
   luckyDrawSlot,
   stakeSpin,
   lockVault,
+  planSlot,
 } from "@/lib/db/schema"
 import { requireAdmin } from "@/lib/session"
 import { accrueIncomeForAll, backfillReinvestForUser } from "@/lib/income-engine"
@@ -492,6 +493,76 @@ export async function toggleBankAccountStatus(id: number) {
   return { ok: true, message: existing.isActive ? "Account deactivated" : "Account activated" }
 }
 
+/**
+ * PLATFORM DATA RESET — C.I.L launch preparation.
+ *
+ * Wipes all transactional data so the platform starts fresh for C.I.L
+ * while keeping user credentials (email, password hash) and phone numbers
+ * so existing users can log in and their identity carries over to a new account.
+ *
+ * KEPT:  user, account, verification (Better Auth — credentials + sessions)
+ *        profile (invite codes, phone numbers, referral tree, bank details)
+ *        bankAccount (deposit routing)
+ *        siteSetting, promoterCode, referralMilestone (config)
+ *
+ * CLEARED: wallet, investment, transaction, deposit, withdrawal, referral,
+ *           daily_signin, gift_code, gift_code_redemption, milestone_claim,
+ *           stake_spin, lucky_draw_slot, lucky_draw_round, lock_vault
+ *
+ * Profile fields reset: balance, earnings, signinBonusGiven, role stays.
+ */
+export async function resetPlatformData(confirmText: string) {
+  await requireAdmin()
+
+  if (confirmText !== "RESET C.I.L") {
+    return { ok: false, message: 'Type "RESET C.I.L" to confirm' }
+  }
+
+  const { pool } = await import("@/lib/db")
+  const client = await pool.connect()
+
+  try {
+    await client.query("BEGIN")
+
+    // Clear transactional tables
+    await client.query("DELETE FROM lock_vault")
+    await client.query("DELETE FROM lucky_draw_round")
+    await client.query("DELETE FROM lucky_draw_slot")
+    await client.query("DELETE FROM stake_spin")
+    await client.query("DELETE FROM gift_code_redemption")
+    await client.query("DELETE FROM gift_code")
+    await client.query("DELETE FROM milestone_claim")
+    await client.query("DELETE FROM daily_signin")
+    await client.query("DELETE FROM referral")
+    await client.query("DELETE FROM withdrawal")
+    await client.query("DELETE FROM deposit")
+    await client.query("DELETE FROM transaction")
+    await client.query("DELETE FROM investment")
+    await client.query("DELETE FROM wallet")
+
+    // Reset profile financial fields and sign-in bonus flag
+    // Keep: phone, inviteCode, referredBy, role, isPromoter, bank details
+    await client.query(`
+      UPDATE profile SET
+        "signinBonusGiven" = false
+    `)
+
+    await client.query("COMMIT")
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {})
+    console.error("[v0] resetPlatformData failed:", err)
+    return { ok: false, message: "Reset failed — check server logs" }
+  } finally {
+    client.release()
+  }
+
+  revalidatePath("/admin")
+  return {
+    ok: true,
+    message: "Platform data cleared. User credentials and bank accounts preserved. C.I.L is ready to launch.",
+  }
+}
+
 export async function getAccountDeposits(accountId: number) {
   await requireAdmin()
   return db
@@ -740,6 +811,60 @@ export async function setPromoterCommission(userId: string, rate: number | null)
 
   revalidatePath("/admin")
   return { ok: true, message: commission != null ? `Commission set to ${commission}%` : "Commission reset to default" }
+}
+
+// ===================== PLAN SLOT MANAGEMENT =====================
+
+/** Fetch all plan slot configs. Missing rows = unlimited/active. */
+export async function getPlanSlots() {
+  await requireAdmin()
+  return db.select().from(planSlot).orderBy(asc(planSlot.planId))
+}
+
+/**
+ * Upsert slot config for a plan.
+ * totalSlots: null means unlimited.
+ * isActive: false means plan is hidden regardless of slots.
+ */
+export async function setPlanSlot(planId: number, opts: { totalSlots: number | null; isActive: boolean }) {
+  await requireAdmin()
+  const existing = await db.select().from(planSlot).where(eq(planSlot.planId, planId))
+
+  if (existing.length > 0) {
+    await db
+      .update(planSlot)
+      .set({
+        totalSlots: opts.totalSlots,
+        isActive: opts.isActive,
+        updatedAt: new Date(),
+      })
+      .where(eq(planSlot.planId, planId))
+  } else {
+    await db.insert(planSlot).values({
+      planId,
+      totalSlots: opts.totalSlots,
+      soldSlots: 0,
+      isActive: opts.isActive,
+    })
+  }
+
+  revalidatePath("/dashboard")
+  revalidatePath("/products")
+  revalidatePath("/admin")
+  return { ok: true, message: `Slots updated for plan ${planId}` }
+}
+
+/** Reset sold slots counter back to zero for a plan (e.g. for a new batch). */
+export async function resetPlanSoldSlots(planId: number) {
+  await requireAdmin()
+  await db
+    .update(planSlot)
+    .set({ soldSlots: 0, updatedAt: new Date() })
+    .where(eq(planSlot.planId, planId))
+  revalidatePath("/dashboard")
+  revalidatePath("/products")
+  revalidatePath("/admin")
+  return { ok: true, message: `Sold slots reset for plan ${planId}` }
 }
 
 export async function togglePromoterCode(id: number) {

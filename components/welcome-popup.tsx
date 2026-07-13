@@ -1,84 +1,119 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Gift, Send, MessageCircle } from 'lucide-react'
+import { X, Send, MessageCircle, ArrowRight, Layers, TrendingUp, Wallet } from 'lucide-react'
 import { SITE, formatNaira } from '@/lib/plans'
+import { Logo } from '@/components/logo'
 
 export function WelcomePopup() {
   const [show, setShow] = useState(false)
 
   useEffect(() => {
-    const hasSeenWelcome = localStorage.getItem('welcome_popup_seen')
+    const hasSeenWelcome = localStorage.getItem('cil_welcome_seen')
     if (!hasSeenWelcome) {
       setShow(true)
-      localStorage.setItem('welcome_popup_seen', 'true')
+      localStorage.setItem('cil_welcome_seen', 'true')
     }
   }, [])
 
   if (!show) return null
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center overflow-hidden">
+    <div className="fixed inset-0 z-[999] flex items-end justify-center sm:items-center">
+      {/* Backdrop */}
       <button
         onClick={() => setShow(false)}
-        className="absolute inset-0 z-0 bg-black/70 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         aria-label="Close"
       />
-      <div className="relative z-10 mx-4 w-full max-w-sm rounded-3xl border border-border bg-card p-6 text-center shadow-2xl">
+
+      {/* Sheet */}
+      <div className="relative z-10 w-full max-w-sm rounded-t-3xl border-t border-x border-border/60 bg-card pb-safe sm:rounded-2xl sm:border shadow-2xl">
+        {/* Handle */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden">
+          <div className="h-1 w-10 rounded-full bg-border" />
+        </div>
+
+        {/* Close */}
         <button
           onClick={() => setShow(false)}
-          className="absolute right-4 top-4 rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground"
           aria-label="Close"
         >
-          <X className="h-5 w-5" />
+          <X className="h-4 w-4" />
         </button>
 
-        <div className="mb-4 flex justify-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15">
-            <Gift className="h-8 w-8 text-primary" />
+        <div className="px-5 pt-4 pb-6">
+          {/* Brand header */}
+          <div className="mb-5 flex items-center gap-3">
+            <Logo className="h-10 w-10" />
+            <div>
+              <h2 className="text-lg font-bold leading-tight">Welcome to {SITE.name}</h2>
+              <p className="text-xs text-muted-foreground">{formatNaira(SITE.welcomeBonus)} bonus added to your wallet</p>
+            </div>
+          </div>
+
+          {/* Bonus badge */}
+          <div className="mb-4 flex items-center gap-3 rounded-xl border border-success/25 bg-success/8 px-4 py-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-success/15">
+              <Wallet className="h-4.5 w-4.5 text-success" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-success">{formatNaira(SITE.welcomeBonus)} Welcome Bonus</p>
+              <p className="text-[11px] text-muted-foreground">Credited to your wallet instantly</p>
+            </div>
+          </div>
+
+          {/* Steps */}
+          <div className="mb-4 flex flex-col gap-2">
+            {[
+              { icon: Layers,      label: 'Pick a project tier',    sub: 'Foundation → Skyline',           tint: 'text-primary',    bg: 'bg-primary/10'  },
+              { icon: TrendingUp,  label: 'Earn daily returns',     sub: `${SITE.investmentBonusPercent}% instant bonus + 30-day income`, tint: 'text-success',    bg: 'bg-success/10'  },
+              { icon: Wallet,      label: 'Withdraw anytime',       sub: 'Fast payout to your bank',       tint: 'text-amber-500',  bg: 'bg-amber-400/10' },
+            ].map((s) => (
+              <div key={s.label} className="flex items-center gap-3 rounded-xl bg-secondary/50 px-3 py-2.5">
+                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${s.bg}`}>
+                  <s.icon className={`h-4 w-4 ${s.tint}`} />
+                </span>
+                <div>
+                  <p className="text-xs font-semibold text-foreground">{s.label}</p>
+                  <p className="text-[10px] text-muted-foreground">{s.sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* CTAs */}
+          <button
+            onClick={() => setShow(false)}
+            className="group relative mb-2.5 flex w-full items-center justify-center overflow-hidden rounded-2xl bg-primary py-3.5 text-sm font-bold text-primary-foreground shadow-md shadow-primary/20 transition-all hover:-translate-y-0.5 hover:shadow-primary/35 active:translate-y-0 active:scale-[0.98]"
+          >
+            <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-500 group-hover:translate-x-full" />
+            <span className="flex items-center gap-2">
+              Start Building Returns
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </span>
+          </button>
+
+          <div className="flex gap-2">
+            <a
+              href={SITE.telegramChannel}
+              target="_blank"
+              rel="noreferrer"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-secondary/50 py-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
+            >
+              <Send className="h-3.5 w-3.5 text-[#0088cc]" /> Channel
+            </a>
+            <a
+              href={`https://t.me/${SITE.telegramSupport}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-secondary/50 py-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
+            >
+              <MessageCircle className="h-3.5 w-3.5 text-[#0088cc]" /> Support
+            </a>
           </div>
         </div>
-
-        <h2 className="mb-2 text-2xl font-bold tracking-tight">Welcome to {SITE.name}!</h2>
-        <p className="mb-5 text-sm text-muted-foreground">
-          You&apos;ve received a {formatNaira(SITE.welcomeBonus)} welcome bonus. Start investing today to earn daily income!
-        </p>
-
-        <div className="mb-5 rounded-2xl bg-primary/10 p-4">
-          <p className="text-xs font-semibold text-primary">How it works:</p>
-          <ul className="mt-2 space-y-1 text-left text-xs text-muted-foreground">
-            <li>1. Choose a plan and invest</li>
-            <li>2. Get {SITE.investmentBonusPercent}% instant bonus</li>
-            <li>3. Earn daily for 30 days</li>
-            <li>4. Withdraw & invite friends</li>
-          </ul>
-        </div>
-
-        <div className="mb-4 flex flex-col gap-2">
-          <a
-            href={SITE.telegramChannel}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center justify-center gap-2 rounded-2xl bg-[#0088cc] py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-          >
-            <Send className="h-4 w-4" /> Join Our Telegram Channel
-          </a>
-          <a
-            href={`https://t.me/${SITE.telegramSupport}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center justify-center gap-2 rounded-2xl border border-[#0088cc]/30 bg-[#0088cc]/10 py-3 text-sm font-semibold text-[#0088cc] transition-colors hover:bg-[#0088cc]/20"
-          >
-            <MessageCircle className="h-4 w-4" /> Contact Support
-          </a>
-        </div>
-
-        <button
-          onClick={() => setShow(false)}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-        >
-          Get Started
-        </button>
       </div>
     </div>
   )

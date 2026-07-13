@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { investment, wallet, transaction, profile, referral } from "@/lib/db/schema"
+import { investment, wallet, transaction, profile, referral, planSlot } from "@/lib/db/schema"
 import { PLANS, SITE } from "@/lib/plans"
 import { getUserId } from "@/lib/session"
 import { accrueIncomeForUser } from "@/lib/income-engine"
@@ -13,7 +13,14 @@ export async function buyPlan(planId: number, opts?: { autoReinvest?: boolean })
   const plan = PLANS.find((p) => p.id === planId)
   if (!plan) return { ok: false, message: "Plan not found" }
 
-  const autoReinvest = opts?.autoReinvest !== false // default true
+  // Check slot availability
+  const [slot] = await db.select().from(planSlot).where(eq(planSlot.planId, planId))
+  if (slot) {
+    if (!slot.isActive) return { ok: false, message: "This plan is currently unavailable." }
+    if (slot.totalSlots !== null && slot.soldSlots >= slot.totalSlots) {
+      return { ok: false, message: "This plan is sold out. Check back later." }
+    }
+  }
 
   const [w] = await db.select().from(wallet).where(eq(wallet.userId, userId))
   const balance = Number(w?.balance ?? 0)
@@ -35,8 +42,16 @@ export async function buyPlan(planId: number, opts?: { autoReinvest?: boolean })
     dailyEarning: String(plan.daily),
     totalEarning: String(plan.total),
     durationDays: plan.durationDays,
-    autoReinvest,
+    autoReinvest: false,
   })
+
+  // Increment sold slots counter
+  if (slot) {
+    await db
+      .update(planSlot)
+      .set({ soldSlots: sql`${planSlot.soldSlots} + 1`, updatedAt: new Date() })
+      .where(eq(planSlot.planId, planId))
+  }
 
   await db.insert(transaction).values({
     userId,
@@ -90,6 +105,11 @@ async function payReferralCommission(buyerId: string, amount: number) {
       description: `Level ${r.level} referral commission (${rate}%)`,
     })
   }
+}
+
+/** Public — returns slot data for all plans so cards can show sold-out state. */
+export async function getPublicPlanSlots() {
+  return db.select().from(planSlot)
 }
 
 export async function getInvestments() {

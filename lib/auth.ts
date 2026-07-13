@@ -6,7 +6,7 @@ export const auth = betterAuth({
   baseURL:
     process.env.BETTER_AUTH_URL ??
     (process.env.NODE_ENV === "production"
-      ? "https://ihh.incumb.fun"
+      ? "https://cil.incumb.fun"
       : process.env.VERCEL_URL
         ? `https://${process.env.VERCEL_URL}`
         : process.env.V0_RUNTIME_URL),
@@ -15,15 +15,15 @@ export const auth = betterAuth({
     autoSignIn: true,
   },
   trustedOrigins: [
-    // Custom domains
-    "https://ihh.incumb.fun",
+    // C.I.L production domains
+    "https://cil.incumb.fun",
     "https://incumb.fun",
     "https://www.incumb.fun",
-    // Vercel deployment domains
-    "https://ihhsite.vercel.app",
-    "https://incomehh.vercel.app",
-    "https://v0-ihhsite.vercel.app",
+    // Legacy IHH domain (keep during migration)
+    "https://ihh.incumb.fun",
+    // v0 preview — V0_RUNTIME_URL is injected per-session
     ...(process.env.V0_RUNTIME_URL ? [process.env.V0_RUNTIME_URL] : []),
+    // Vercel deployment URLs (injected automatically at deploy time)
     ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
     ...(process.env.VERCEL_PROJECT_PRODUCTION_URL
       ? [`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`]
@@ -33,14 +33,14 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 7,
     updateAge: 60 * 60 * 24,
   },
-  ...(process.env.NODE_ENV === "development"
-    ? {
-        advanced: {
-          defaultCookieAttributes: {
-            sameSite: "none" as const,
-            secure: true,
-          },
-        },
-      }
-    : {}),
+  advanced: {
+    // In dev/preview the origin is a dynamic vusercontent.net subdomain.
+    // Disable the CSRF origin check so v0 preview always works.
+    // Production keeps it on via the trustedOrigins list above.
+    disableCSRFCheck: process.env.NODE_ENV !== "production",
+    defaultCookieAttributes: {
+      sameSite: process.env.NODE_ENV === "production" ? ("lax" as const) : ("none" as const),
+      secure: true,
+    },
+  },
 })

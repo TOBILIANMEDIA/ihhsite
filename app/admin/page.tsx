@@ -21,6 +21,7 @@ import {
   getAllVaults,
   getAllDrawSlots,
   getGameStats,
+  getPlanSlots,
 } from "@/app/actions/admin"
 import { getGameConfig } from "@/app/actions/settings"
 import { AdminDashboard } from "@/components/admin/admin-dashboard"
@@ -53,6 +54,7 @@ export default async function AdminPage() {
     drawSlots,
     gameStats,
     gameConfig,
+    planSlots,
   ] = await Promise.all([
     getAdminStats(),
     getPendingWithdrawals(),
@@ -72,6 +74,7 @@ export default async function AdminPage() {
     getAllDrawSlots(),
     getGameStats(),
     getGameConfig(),
+    getPlanSlots(),
   ])
 
   return (
@@ -94,6 +97,7 @@ export default async function AdminPage() {
       drawSlots={drawSlots}
       gameStats={gameStats}
       gameConfig={gameConfig}
+      planSlots={planSlots}
     />
   )
 }
