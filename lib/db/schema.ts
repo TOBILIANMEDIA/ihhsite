@@ -158,6 +158,8 @@ export const referral = pgTable("referral", {
   referredId: text("referredId").notNull(),
   level: integer("level").notNull(),
   totalCommission: numeric("totalCommission", { precision: 14, scale: 2 }).notNull().default("0"),
+  // Prevents the one-time commission from being paid more than once.
+  commissionPaid: boolean("commissionPaid").notNull().default(false),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 })
 
