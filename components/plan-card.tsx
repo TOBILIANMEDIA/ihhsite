@@ -119,6 +119,18 @@ export function PlanCard({ plan, slot }: { plan: Plan; slot?: SlotInfo }) {
           </div>
         )}
 
+        {/* Slot circle badge — top-right of image */}
+        {hasLimit && !isSoldOut && (
+          <div className={cn(
+            "absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-full shadow-lg ring-2 ring-white/20",
+            style.btnBg,
+          )}>
+            <span className={cn("text-sm font-extrabold tabular-nums leading-none", style.btnText)}>
+              {remaining}
+            </span>
+          </div>
+        )}
+
         {/* Overlay badges */}
         <div className="absolute bottom-2.5 left-3 right-3 flex items-end justify-between">
           <div>
@@ -158,23 +170,7 @@ export function PlanCard({ plan, slot }: { plan: Plan; slot?: SlotInfo }) {
           <span className={cn("text-sm font-bold tabular-nums", style.text)}>{formatNaira(plan.total)}</span>
         </div>
 
-        {/* Slot progress bar (only when admin has set a limit) */}
-        {hasLimit && (
-          <div className="mb-3">
-            <div className="mb-1.5 flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground">Slots available</span>
-              <span className={cn("text-[10px] font-bold tabular-nums", isSoldOut ? "text-destructive" : style.text)}>
-                {isSoldOut ? "Sold out" : `${remaining} / ${totalSlots} left`}
-              </span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-              <div
-                className={cn("h-full rounded-full transition-all duration-500", isSoldOut ? "bg-destructive/60" : style.bar)}
-                style={{ width: `${fillPct}%` }}
-              />
-            </div>
-          </div>
-        )}
+
 
         {/* Action buttons */}
         {isSoldOut ? (
@@ -224,6 +220,7 @@ export function PlanCard({ plan, slot }: { plan: Plan; slot?: SlotInfo }) {
     </article>
   )
 }
+
 
 function Stat({ label, value, icon, tint }: { label: string; value: string; icon: React.ReactNode; tint: string }) {
   return (
