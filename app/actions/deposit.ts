@@ -97,6 +97,17 @@ export async function approveDeposit(reference: string) {
     })
     .where(eq(wallet.userId, dep.userId))
 
+  // Update bank account stats
+  if (dep.bankAccountId) {
+    await db
+      .update(bankAccount)
+      .set({
+        totalDeposits: sql`${bankAccount.totalDeposits} + ${amount}`,
+        depositCount: sql`${bankAccount.depositCount} + 1`,
+      })
+      .where(eq(bankAccount.id, dep.bankAccountId))
+  }
+
   await db.insert(transaction).values({
     userId: dep.userId,
     type: "deposit",
