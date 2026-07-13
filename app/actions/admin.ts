@@ -19,6 +19,7 @@ import {
   luckyDrawSlot,
   stakeSpin,
   lockVault,
+  planSlot,
 } from "@/lib/db/schema"
 import { requireAdmin } from "@/lib/session"
 import { accrueIncomeForAll, backfillReinvestForUser } from "@/lib/income-engine"
@@ -810,6 +811,60 @@ export async function setPromoterCommission(userId: string, rate: number | null)
 
   revalidatePath("/admin")
   return { ok: true, message: commission != null ? `Commission set to ${commission}%` : "Commission reset to default" }
+}
+
+// ===================== PLAN SLOT MANAGEMENT =====================
+
+/** Fetch all plan slot configs. Missing rows = unlimited/active. */
+export async function getPlanSlots() {
+  await requireAdmin()
+  return db.select().from(planSlot).orderBy(asc(planSlot.planId))
+}
+
+/**
+ * Upsert slot config for a plan.
+ * totalSlots: null means unlimited.
+ * isActive: false means plan is hidden regardless of slots.
+ */
+export async function setPlanSlot(planId: number, opts: { totalSlots: number | null; isActive: boolean }) {
+  await requireAdmin()
+  const existing = await db.select().from(planSlot).where(eq(planSlot.planId, planId))
+
+  if (existing.length > 0) {
+    await db
+      .update(planSlot)
+      .set({
+        totalSlots: opts.totalSlots,
+        isActive: opts.isActive,
+        updatedAt: new Date(),
+      })
+      .where(eq(planSlot.planId, planId))
+  } else {
+    await db.insert(planSlot).values({
+      planId,
+      totalSlots: opts.totalSlots,
+      soldSlots: 0,
+      isActive: opts.isActive,
+    })
+  }
+
+  revalidatePath("/dashboard")
+  revalidatePath("/products")
+  revalidatePath("/admin")
+  return { ok: true, message: `Slots updated for plan ${planId}` }
+}
+
+/** Reset sold slots counter back to zero for a plan (e.g. for a new batch). */
+export async function resetPlanSoldSlots(planId: number) {
+  await requireAdmin()
+  await db
+    .update(planSlot)
+    .set({ soldSlots: 0, updatedAt: new Date() })
+    .where(eq(planSlot.planId, planId))
+  revalidatePath("/dashboard")
+  revalidatePath("/products")
+  revalidatePath("/admin")
+  return { ok: true, message: `Sold slots reset for plan ${planId}` }
 }
 
 export async function togglePromoterCode(id: number) {

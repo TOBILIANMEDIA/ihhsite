@@ -2,7 +2,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getSession } from "@/lib/session"
 import { getDashboardData } from "@/app/actions/account"
-import { getInvestments } from "@/app/actions/investments"
+import { getInvestments, getPublicPlanSlots } from "@/app/actions/investments"
 import { getPendingDeposits } from "@/app/actions/deposit"
 import { db } from "@/lib/db"
 import { investment } from "@/lib/db/schema"
@@ -27,10 +27,11 @@ export default async function DashboardPage() {
 
   const userId = session.user.id
 
-  const [data, investments, pendingDeposits] = await Promise.all([
+  const [data, investments, pendingDeposits, planSlots] = await Promise.all([
     getDashboardData(),
     getInvestments(),
     getPendingDeposits(),
+    getPublicPlanSlots(),
   ])
 
   const todayIncome = investments
@@ -89,7 +90,7 @@ export default async function DashboardPage() {
           </div>
           <div className="flex flex-col gap-3">
             {PLANS.slice(0, 4).map((plan) => (
-              <PlanCard key={plan.id} plan={plan} />
+              <PlanCard key={plan.id} plan={plan} slot={planSlots.find((s) => s.planId === plan.id)} />
             ))}
           </div>
         </section>

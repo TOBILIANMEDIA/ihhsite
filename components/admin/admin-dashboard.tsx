@@ -83,6 +83,7 @@ import {
   adminDeleteTransaction,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
+import { PlanSlotsPanel } from "@/components/admin/plan-slots-panel"
 
 const POLL_INTERVAL = 20_000 // 20 seconds
 
@@ -345,8 +346,11 @@ type AdminData = {
   gameConfig: GameConfig
 }
 
-export function AdminDashboard(initial: AdminData) {
-  const [data, setData] = useState<AdminData>(initial)
+type SlotRow = { planId: number; totalSlots: number | null; soldSlots: number; isActive: boolean }
+
+export function AdminDashboard(initial: AdminData & { planSlots?: SlotRow[] }) {
+  const { planSlots: initialPlanSlots, ...initialData } = initial
+  const [data, setData] = useState<AdminData>(initialData as AdminData)
   const [tab, setTab] = useState<Tab>("Overview")
   const [refreshing, setRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -635,7 +639,10 @@ function Overview({ stats, controls, onAction }: { stats: Stats; controls: Contr
         Backfill Reinvest Earnings
       </button>
 
-      {/* Platform Data Reset */}
+      {/* Plan Slot Control */}
+  <PlanSlotsPanel initialSlots={initialPlanSlots ?? []} />
+
+  {/* Platform Data Reset */}
       <div className="rounded-2xl border border-destructive/30 bg-card p-4">
         <div className="mb-3 flex items-center justify-between">
           <div>

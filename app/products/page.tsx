@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
+import { getPublicPlanSlots } from '@/app/actions/investments'
 import { AppHeader } from '@/components/app-header'
 import { BottomNav } from '@/components/bottom-nav'
 import { PlanCard } from '@/components/plan-card'
@@ -18,6 +19,8 @@ export default async function ProductsPage() {
   const session = await getSession()
   if (!session?.user) redirect('/')
 
+  const planSlots = await getPublicPlanSlots()
+
   return (
     <div className="min-h-screen pb-24">
       <AppHeader title="Investment Projects" />
@@ -27,7 +30,7 @@ export default async function ProductsPage() {
         <section className="overflow-hidden rounded-2xl border border-border/60 bg-card">
           <div className="border-b border-border/60 px-4 py-3">
             <h2 className="text-sm font-bold text-foreground">Project Overview</h2>
-            <p className="text-[11px] text-muted-foreground">All plans run 30 days · returns paid every 24h</p>
+            <p className="text-[11px] text-muted-foreground">All plans run 90 days · returns paid every 24h</p>
           </div>
           <div className="grid grid-cols-4 border-b border-border/60 bg-secondary/30 text-center text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
             {["Phase", "Capital", "Daily", "Total"].map((h) => (
@@ -60,7 +63,7 @@ export default async function ProductsPage() {
               </div>
               <div className="flex flex-col gap-3">
                 {plans.map((plan) => (
-                  <PlanCard key={plan.id} plan={plan} />
+                  <PlanCard key={plan.id} plan={plan} slot={planSlots.find((s) => s.planId === plan.id)} />
                 ))}
               </div>
             </section>
