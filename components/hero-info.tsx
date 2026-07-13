@@ -5,13 +5,13 @@ export function HeroInfo({ isPromoter = false }: { isPromoter?: boolean }) {
   const level1Rate = isPromoter ? SITE.promoterLevel1 : SITE.referralLevel1
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-border bg-card">
-      <div className="relative bg-gradient-to-r from-success/25 via-primary/15 to-primary/30 p-5 text-center">
-        <p className="text-xs font-semibold uppercase tracking-widest text-success">
-          IHH Earnings
+    <section className="overflow-hidden rounded-2xl border border-border/60 bg-card">
+      <div className="relative border-b border-border/60 bg-secondary/30 p-4 text-center">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">
+          C.I.L Returns
         </p>
         <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-balance">
-          Income Drops Every 24 Hours
+          Returns Paid Every 24 Hours
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Withdrawal window: {SITE.withdrawalHours}

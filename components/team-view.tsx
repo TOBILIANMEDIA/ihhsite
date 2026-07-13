@@ -71,8 +71,8 @@ export function TeamView({ data, milestonesData }: { data: TeamData; milestonesD
 
   return (
     <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
-      <section className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-primary/30 via-card to-card p-5">
-        <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-success/20 blur-2xl" />
+      <section className="relative overflow-hidden rounded-2xl border border-border/60 bg-card p-5">
+        <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-primary/15 blur-2xl" />
         <div className="relative">
           <div className="flex items-center gap-2 text-success">
             <Share2 className="h-5 w-5" />
@@ -94,15 +94,15 @@ export function TeamView({ data, milestonesData }: { data: TeamData; milestonesD
       </section>
 
       <section className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <Coins className="h-5 w-5 text-success" />
-          <p className="mt-2 text-2xl font-bold tabular-nums">{formatNaira(data.totalCommission)}</p>
-          <p className="text-xs text-muted-foreground">Total commission</p>
+        <div className="rounded-xl border border-success/20 bg-success/8 p-4">
+          <Coins className="h-4.5 w-4.5 text-success" />
+          <p className="mt-2 text-xl font-bold tabular-nums text-success">{formatNaira(data.totalCommission)}</p>
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Commission</p>
         </div>
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <Users className="h-5 w-5 text-primary" />
-          <p className="mt-2 text-2xl font-bold tabular-nums">{data.totalMembers}</p>
-          <p className="text-xs text-muted-foreground">Total members</p>
+        <div className="rounded-xl border border-primary/20 bg-primary/8 p-4">
+          <Users className="h-4.5 w-4.5 text-primary" />
+          <p className="mt-2 text-xl font-bold tabular-nums text-primary">{data.totalMembers}</p>
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Members</p>
         </div>
       </section>
 

@@ -8,10 +8,10 @@ export function WelcomePopup() {
   const [show, setShow] = useState(false)
 
   useEffect(() => {
-    const hasSeenWelcome = localStorage.getItem('welcome_popup_seen')
+    const hasSeenWelcome = localStorage.getItem('cil_welcome_seen')
     if (!hasSeenWelcome) {
       setShow(true)
-      localStorage.setItem('welcome_popup_seen', 'true')
+      localStorage.setItem('cil_welcome_seen', 'true')
     }
   }, [])
 
@@ -24,7 +24,7 @@ export function WelcomePopup() {
         className="absolute inset-0 z-0 bg-black/70 backdrop-blur-sm"
         aria-label="Close"
       />
-      <div className="relative z-10 mx-4 w-full max-w-sm rounded-3xl border border-border bg-card p-6 text-center shadow-2xl">
+      <div className="relative z-10 mx-4 w-full max-w-sm rounded-2xl border border-border/60 bg-card p-6 text-center shadow-2xl">
         <button
           onClick={() => setShow(false)}
           className="absolute right-4 top-4 rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -34,23 +34,23 @@ export function WelcomePopup() {
         </button>
 
         <div className="mb-4 flex justify-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15">
-            <Gift className="h-8 w-8 text-primary" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-primary/30 bg-primary/15">
+            <Gift className="h-7 w-7 text-primary" />
           </div>
         </div>
 
-        <h2 className="mb-2 text-2xl font-bold tracking-tight">Welcome to {SITE.name}!</h2>
-        <p className="mb-5 text-sm text-muted-foreground">
-          You&apos;ve received a {formatNaira(SITE.welcomeBonus)} welcome bonus. Start investing today to earn daily income!
+        <h2 className="mb-2 text-xl font-bold tracking-tight">Welcome to {SITE.name}!</h2>
+        <p className="mb-5 text-sm text-muted-foreground leading-relaxed">
+          You&apos;ve received a {formatNaira(SITE.welcomeBonus)} welcome bonus. Pick a project and start building your returns.
         </p>
 
-        <div className="mb-5 rounded-2xl bg-primary/10 p-4">
-          <p className="text-xs font-semibold text-primary">How it works:</p>
-          <ul className="mt-2 space-y-1 text-left text-xs text-muted-foreground">
-            <li>1. Choose a plan and invest</li>
-            <li>2. Get {SITE.investmentBonusPercent}% instant bonus</li>
-            <li>3. Earn daily for 30 days</li>
-            <li>4. Withdraw & invite friends</li>
+        <div className="mb-5 rounded-xl border border-primary/20 bg-primary/8 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-primary">How it works</p>
+          <ul className="mt-2 space-y-1.5 text-left text-xs text-muted-foreground">
+            <li>1. Choose a construction tier (Foundation &rarr; Skyline)</li>
+            <li>2. Get {SITE.investmentBonusPercent}% instant bonus on investment</li>
+            <li>3. Earn daily returns for 30 days</li>
+            <li>4. Withdraw &amp; invite your team</li>
           </ul>
         </div>
 

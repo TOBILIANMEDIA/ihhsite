@@ -8,25 +8,41 @@ export type Plan = {
   popular?: boolean
 }
 
+// Construction tier labels — grouped by phase
+export const PLAN_TIERS: Record<number, { phase: string; label: string; color: string }> = {
+  1:  { phase: 'Foundation', label: 'F-01', color: 'text-stone-400' },
+  2:  { phase: 'Foundation', label: 'F-02', color: 'text-stone-400' },
+  3:  { phase: 'Foundation', label: 'F-03', color: 'text-stone-400' },
+  4:  { phase: 'Structure',  label: 'S-01', color: 'text-primary' },
+  5:  { phase: 'Structure',  label: 'S-02', color: 'text-primary' },
+  6:  { phase: 'Structure',  label: 'S-03', color: 'text-primary' },
+  7:  { phase: 'Framework',  label: 'FW-01', color: 'text-sky-400' },
+  8:  { phase: 'Framework',  label: 'FW-02', color: 'text-sky-400' },
+  9:  { phase: 'Framework',  label: 'FW-03', color: 'text-sky-400' },
+  10: { phase: 'Skyline',    label: 'SK-01', color: 'text-amber-400' },
+  11: { phase: 'Skyline',    label: 'SK-02', color: 'text-amber-400' },
+  12: { phase: 'Skyline',    label: 'SK-03', color: 'text-amber-400' },
+}
+
 export const PLANS: Plan[] = [
-  { id: 1, name: 'VIP 1', price: 3000, daily: 1000, total: 30000, durationDays: 30 },
-  { id: 2, name: 'VIP 2', price: 5000, daily: 1670, total: 50100, durationDays: 30 },
-  { id: 3, name: 'VIP 3', price: 10000, daily: 3334, total: 100020, durationDays: 30, popular: true },
-  { id: 4, name: 'VIP 4', price: 15000, daily: 5000, total: 150000, durationDays: 30 },
-  { id: 5, name: 'VIP 5', price: 20000, daily: 6667, total: 200010, durationDays: 30 },
-  { id: 6, name: 'VIP 6', price: 30000, daily: 10000, total: 300000, durationDays: 30 },
-  { id: 7, name: 'VIP 7', price: 50000, daily: 16666, total: 499980, durationDays: 30 },
-  { id: 8, name: 'VIP 8', price: 80000, daily: 26666, total: 800000, durationDays: 30 },
-  { id: 9, name: 'VIP 9', price: 100000, daily: 33333, total: 1000000, durationDays: 30 },
-  { id: 10, name: 'VIP 10', price: 200000, daily: 66666, total: 2000000, durationDays: 30 },
-  { id: 11, name: 'VIP 11', price: 300000, daily: 100000, total: 3000000, durationDays: 30 },
-  { id: 12, name: 'VIP 12', price: 500000, daily: 166666, total: 5000000, durationDays: 30 },
+  { id: 1, name: 'Foundation F-01', price: 3000,   daily: 1000,   total: 30000,    durationDays: 30 },
+  { id: 2, name: 'Foundation F-02', price: 5000,   daily: 1670,   total: 50100,    durationDays: 30 },
+  { id: 3, name: 'Foundation F-03', price: 10000,  daily: 3334,   total: 100020,   durationDays: 30 },
+  { id: 4, name: 'Structure S-01',  price: 15000,  daily: 5000,   total: 150000,   durationDays: 30 },
+  { id: 5, name: 'Structure S-02',  price: 20000,  daily: 6667,   total: 200010,   durationDays: 30 },
+  { id: 6, name: 'Structure S-03',  price: 30000,  daily: 10000,  total: 300000,   durationDays: 30, popular: true },
+  { id: 7, name: 'Framework FW-01', price: 50000,  daily: 16666,  total: 499980,   durationDays: 30 },
+  { id: 8, name: 'Framework FW-02', price: 80000,  daily: 26666,  total: 800000,   durationDays: 30 },
+  { id: 9, name: 'Framework FW-03', price: 100000, daily: 33333,  total: 1000000,  durationDays: 30 },
+  { id: 10, name: 'Skyline SK-01',  price: 200000, daily: 66666,  total: 2000000,  durationDays: 30 },
+  { id: 11, name: 'Skyline SK-02',  price: 300000, daily: 100000, total: 3000000,  durationDays: 30 },
+  { id: 12, name: 'Skyline SK-03',  price: 500000, daily: 166666, total: 5000000,  durationDays: 30 },
 ]
 
 export const SITE = {
-  name: 'incomehh',
-  short: 'IHH',
-  tagline: 'Investment Platform',
+  name: 'C.I.Limited',
+  short: 'C.I.L',
+  tagline: 'Construction Investment Limited',
   signInBonus: 100,
   welcomeBonus: 900,
   investmentBonusPercent: 10,
@@ -37,10 +53,10 @@ export const SITE = {
   referralLevel2: 3,
   promoterLevel1: 40,
   withdrawalHours: '9 AM to 8 PM Daily',
-  inviteCode: 'IHHXQ7',
-  telegramGroup: 'https://t.me/ihhsupport',
-  telegramChannel: 'https://t.me/incomehh',
-  telegramSupport: 'ihhsupport',
+  inviteCode: 'CILXQ7',
+  telegramGroup: 'https://t.me/cilsupport',
+  telegramChannel: 'https://t.me/cilimited',
+  telegramSupport: 'cilsupport',
   paymentExpiryMinutes: 30,
 
   // Stake & Spin

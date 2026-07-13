@@ -1,6 +1,6 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Space_Grotesk } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { getBoolSetting, SETTING_KEYS } from '@/app/actions/settings'
 import { getSession } from '@/lib/session'
@@ -10,21 +10,23 @@ import { eq, count } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import './globals.css'
 
-const geistSans = Geist({
+const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
-  variable: '--font-geist-sans',
-})
-
-const geistMono = Geist_Mono({
-  subsets: ['latin'],
-  variable: '--font-geist-mono',
+  variable: '--font-space-grotesk',
+  weight: ['300', '400', '500', '600', '700'],
 })
 
 export const metadata: Metadata = {
-  title: 'incomehh — Investment Platform',
+  title: 'C.I.Limited — Construction Investment',
   description:
-    'incomehh (IHH) — daily income drops every 24 hours. Topup, withdraw, invite, and grow your earnings.',
+    'C.I.Limited (C.I.L) — Build your wealth through construction investment. Daily returns, transparent projects, real growth.',
   generator: 'v0.app',
+  openGraph: {
+    title: 'C.I.Limited — Construction Investment',
+    description: 'Build your wealth through construction investment with C.I.L.',
+    siteName: 'C.I.Limited',
+    type: 'website',
+  },
   icons: {
     icon: '/favicon.png',
     apple: '/logo.png',
@@ -32,7 +34,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#1a1730',
+  themeColor: '#141618',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -84,7 +86,7 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} bg-background`}>
+    <html lang="en" className={`${spaceGrotesk.variable} bg-background`}>
       <body className="font-sans antialiased">
         {children}
         <Toaster theme="dark" position="top-center" richColors />
