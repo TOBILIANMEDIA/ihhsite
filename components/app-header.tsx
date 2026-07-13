@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Bell, Menu } from 'lucide-react'
+import { Bell } from 'lucide-react'
 import { LogoWordmark } from '@/components/logo'
 import { InfoModal } from '@/components/info-modal'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export function AppHeader({ title }: { title?: string }) {
   const [open, setOpen] = useState(false)
@@ -21,13 +22,16 @@ export function AppHeader({ title }: { title?: string }) {
           ) : (
             <LogoWordmark />
           )}
-          <button
-            onClick={() => setOpen(true)}
-            aria-label="Platform information"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 bg-secondary/60 text-muted-foreground transition-all hover:border-primary/40 hover:text-foreground"
-          >
-            <Bell className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <button
+              onClick={() => setOpen(true)}
+              aria-label="Platform information"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 bg-secondary/60 text-muted-foreground transition-all hover:border-primary/40 hover:text-foreground"
+            >
+              <Bell className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </header>
       {mounted && open && createPortal(

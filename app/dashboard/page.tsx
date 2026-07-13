@@ -15,6 +15,7 @@ import { PlanCard } from "@/components/plan-card"
 import { ActiveInvestments } from "@/components/active-investments"
 import { WelcomePopup } from "@/components/welcome-popup"
 import { PendingDepositPopup } from "@/components/pending-deposit-popup"
+import { PageTransition } from "@/components/page-transition"
 import { PLANS, SITE } from "@/lib/plans"
 
 export const dynamic = "force-dynamic"
@@ -44,7 +45,8 @@ export default async function DashboardPage() {
       <PendingDepositPopup deposits={pendingDeposits} />
       <AppHeader />
 
-      <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
+      <main className="mx-auto max-w-md px-4 py-5">
+        <PageTransition className="flex flex-col gap-5">
         {/* Greeting */}
         <div className="flex items-start justify-between">
           <div>
@@ -88,6 +90,7 @@ export default async function DashboardPage() {
             ))}
           </div>
         </section>
+        </PageTransition>
       </main>
 
       <BottomNav />

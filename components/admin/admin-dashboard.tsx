@@ -52,6 +52,7 @@ import {
   createGiftCode,
   processAllIncome,
   runReinvestBackfillAll,
+  resetPlatformData,
   addBankAccount,
   updateBankAccount,
   deleteBankAccount,
@@ -556,6 +557,18 @@ function Overview({ stats, controls, onAction }: { stats: Stats; controls: Contr
     })
   }
 
+  const [resetConfirmText, setResetConfirmText] = useState("")
+  const [showResetPanel, setShowResetPanel] = useState(false)
+  const [resetPending, startResetTransition] = useTransition()
+
+  function handleResetPlatform() {
+    startResetTransition(async () => {
+      const res = await resetPlatformData(resetConfirmText)
+      toast[res.ok ? "success" : "error"](res.message)
+      if (res.ok) { setShowResetPanel(false); setResetConfirmText(""); onAction() }
+    })
+  }
+
   function toggleFreeze() {
     const next = !siteFrozen
     setSiteFrozenState(next)
@@ -621,6 +634,45 @@ function Overview({ stats, controls, onAction }: { stats: Stats; controls: Contr
         {backfillPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
         Backfill Reinvest Earnings
       </button>
+
+      {/* Platform Data Reset */}
+      <div className="rounded-2xl border border-destructive/30 bg-card p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-destructive">Platform Data Reset</h3>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Clears all investments, wallets &amp; transactions. Keeps user credentials &amp; bank accounts.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowResetPanel((v) => !v)}
+            className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs font-bold text-destructive transition-all hover:bg-destructive/20"
+          >
+            {showResetPanel ? "Cancel" : "Reset"}
+          </button>
+        </div>
+        {showResetPanel && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-muted-foreground">
+              Type <span className="font-mono font-bold text-destructive">RESET C.I.L</span> to confirm:
+            </p>
+            <input
+              value={resetConfirmText}
+              onChange={(e) => setResetConfirmText(e.target.value)}
+              placeholder="RESET C.I.L"
+              className="rounded-lg border border-destructive/30 bg-secondary/60 px-3 py-2 text-sm font-mono outline-none focus:border-destructive/60"
+            />
+            <button
+              onClick={handleResetPlatform}
+              disabled={resetPending || resetConfirmText !== "RESET C.I.L"}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive py-2.5 text-sm font-bold text-white transition-all hover:opacity-90 disabled:opacity-40"
+            >
+              {resetPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Confirm Platform Reset
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="rounded-2xl border border-border bg-card p-4">
         <div className="flex items-center gap-2">
@@ -2591,7 +2643,7 @@ function GamesAdminTab({
   )
 }
 
-// ── Financials Tab ────────────────────────────────────────────────────────────
+// ── Financials Tab ───────────���────────────────────────────────────────────────
 function FinancialsTab({ data }: { data: Financials }) {
   const cards = [
     { label: "Withdrawal Charges (Revenue)", value: data.withdrawalCharges, color: "text-success" },

@@ -33,14 +33,14 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 7,
     updateAge: 60 * 60 * 24,
   },
-  ...(process.env.NODE_ENV === "development"
-    ? {
-        advanced: {
-          defaultCookieAttributes: {
-            sameSite: "none" as const,
-            secure: true,
-          },
-        },
-      }
-    : {}),
+  advanced: {
+    // In dev/preview the origin is a dynamic vusercontent.net subdomain.
+    // Disable the CSRF origin check so v0 preview always works.
+    // Production keeps it on via the trustedOrigins list above.
+    disableCSRFCheck: process.env.NODE_ENV !== "production",
+    defaultCookieAttributes: {
+      sameSite: process.env.NODE_ENV === "production" ? ("lax" as const) : ("none" as const),
+      secure: true,
+    },
+  },
 })

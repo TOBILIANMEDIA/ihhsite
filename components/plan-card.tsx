@@ -2,17 +2,17 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, TrendingUp, CalendarDays, Coins, CheckCircle2, RotateCcw } from "lucide-react"
+import { Loader2, TrendingUp, CalendarDays, Coins, CheckCircle2 } from "lucide-react"
 import { toast } from "sonner"
 import { type Plan, PLAN_TIERS, formatNaira } from "@/lib/plans"
 import { buyPlan } from "@/app/actions/investments"
 import { cn } from "@/lib/utils"
 
-const TIER_STYLES: Record<string, { bar: string; badge: string; text: string; accent: string }> = {
-  Foundation: { bar: "bg-stone-400",  badge: "bg-stone-400/15 text-stone-400",  text: "text-stone-400",  accent: "border-stone-400/20" },
-  Structure:  { bar: "bg-primary",    badge: "bg-primary/15 text-primary",      text: "text-primary",    accent: "border-primary/25"  },
-  Framework:  { bar: "bg-sky-400",    badge: "bg-sky-400/15 text-sky-400",      text: "text-sky-400",    accent: "border-sky-400/20"  },
-  Skyline:    { bar: "bg-amber-400",  badge: "bg-amber-400/15 text-amber-400",  text: "text-amber-400",  accent: "border-amber-400/20" },
+const TIER_STYLES: Record<string, { bar: string; badge: string; text: string; accent: string; glow: string }> = {
+  Foundation: { bar: "bg-stone-400",  badge: "bg-stone-400/15 text-stone-400",  text: "text-stone-400",  accent: "border-stone-400/20",  glow: "hover:shadow-stone-400/10"  },
+  Structure:  { bar: "bg-primary",    badge: "bg-primary/15 text-primary",      text: "text-primary",    accent: "border-primary/25",    glow: "hover:shadow-primary/10"    },
+  Framework:  { bar: "bg-sky-400",    badge: "bg-sky-400/15 text-sky-400",      text: "text-sky-400",    accent: "border-sky-400/20",    glow: "hover:shadow-sky-400/10"    },
+  Skyline:    { bar: "bg-amber-400",  badge: "bg-amber-400/15 text-amber-400",  text: "text-amber-400",  accent: "border-amber-400/20",  glow: "hover:shadow-amber-400/10"  },
 }
 
 export function PlanCard({ plan }: { plan: Plan }) {
@@ -39,79 +39,81 @@ export function PlanCard({ plan }: { plan: Plan }) {
   }
 
   return (
-    <article className={cn(
-      "relative overflow-hidden rounded-2xl border bg-card transition-all",
-      confirm ? `border-primary/40` : `border-border/60 hover:border-primary/25`,
-    )}>
-      {/* Tier accent bar */}
+    <article
+      className={cn(
+        "relative overflow-hidden rounded-2xl border bg-card transition-all duration-200",
+        "hover:-translate-y-0.5 hover:shadow-lg",
+        plan.popular ? "border-primary/40" : "border-border/60",
+        style.glow,
+      )}
+    >
+      {/* Tier colour bar at top */}
       <div className={cn("h-0.5 w-full", style.bar)} />
 
       <div className="p-4">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <div className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-xs font-black",
-              style.accent, style.badge,
-            )}>
-              {tier?.label ?? plan.id}
-            </div>
-            <div>
-              <h3 className="text-sm font-bold leading-tight text-foreground">{plan.name}</h3>
-              <span className={cn("text-[10px] font-semibold uppercase tracking-widest", style.text)}>
-                {tier?.phase ?? "Plan"}
-              </span>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-base font-black tabular-nums text-foreground">{formatNaira(plan.price)}</p>
-            <p className="text-[10px] text-muted-foreground">investment</p>
-          </div>
-          {plan.popular && (
-            <span className="absolute right-3 top-4 rounded-full bg-primary px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-primary-foreground">
-              Popular
+        {/* Header row */}
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div>
+            <span className={cn("text-[10px] font-bold uppercase tracking-widest", style.text)}>
+              {tier?.phase}
             </span>
-          )}
+            <h3 className="mt-0.5 text-sm font-bold leading-tight">{plan.name}</h3>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            {plan.popular && (
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary">
+                Popular
+              </span>
+            )}
+            <span className={cn("rounded-lg px-2 py-0.5 text-[10px] font-bold", style.badge)}>
+              {tier?.label}
+            </span>
+          </div>
         </div>
 
         {/* Metrics row */}
-        <div className="mt-3 grid grid-cols-3 divide-x divide-border/60 rounded-xl border border-border/60 bg-secondary/30 text-center">
-          <Metric icon={Coins} tint={style.text} label="Daily" value={formatNaira(plan.daily)} />
-          <Metric icon={TrendingUp} tint="text-success" label="Total" value={formatNaira(plan.total)} />
-          <Metric icon={CalendarDays} tint="text-muted-foreground" label="Days" value={`${plan.durationDays}d`} />
+        <div className="mb-3 grid grid-cols-3 divide-x divide-border/40 rounded-xl border border-border/40 bg-secondary/30 text-center">
+          <Metric icon={Coins}        tint={style.text} label="Capital"  value={formatNaira(plan.price)}  />
+          <Metric icon={TrendingUp}   tint={style.text} label="Daily"    value={formatNaira(plan.daily)}  />
+          <Metric icon={CalendarDays} tint={style.text} label="In 30d"   value={formatNaira(plan.total)}  />
         </div>
 
-        {/* CTA */}
+        {/* Confirm panel */}
         {confirm ? (
-          <div className="mt-3 flex flex-col gap-2.5">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <div
-                onClick={() => setAutoReinvest(!autoReinvest)}
+          <div className="flex flex-col gap-3">
+            {/* Auto-reinvest toggle */}
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-border/50 bg-secondary/40 px-3 py-2.5">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={autoReinvest}
+                onClick={() => setAutoReinvest((v) => !v)}
                 className={cn(
-                  "relative h-5 w-9 rounded-full transition-colors cursor-pointer",
-                  autoReinvest ? "bg-primary/40" : "bg-secondary",
+                  "relative h-5 w-9 rounded-full transition-colors duration-200",
+                  autoReinvest ? "bg-primary" : "bg-secondary",
                 )}
               >
                 <div className={cn(
-                  "absolute top-0.5 h-4 w-4 rounded-full bg-primary transition-all",
+                  "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all duration-200",
                   autoReinvest ? "left-4" : "left-0.5",
                 )} />
-              </div>
-              <span className="text-xs text-muted-foreground">Auto-reinvest earnings</span>
+              </button>
+              <span className="flex-1 text-xs text-muted-foreground">Auto-reinvest earnings</span>
               {autoReinvest && <CheckCircle2 className="h-3.5 w-3.5 text-primary" />}
             </label>
+
             <div className="flex gap-2">
               <button
                 onClick={() => setConfirm(false)}
                 disabled={pending}
-                className="flex flex-1 items-center justify-center rounded-xl border border-border/60 bg-secondary/60 py-2.5 text-sm font-semibold text-foreground transition-all hover:bg-secondary"
+                className="flex flex-1 items-center justify-center rounded-xl border border-border/60 bg-secondary/60 py-2.5 text-sm font-semibold transition-all hover:bg-secondary active:scale-[0.98]"
               >
                 Cancel
               </button>
               <button
                 onClick={handleBuy}
                 disabled={pending}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
               >
                 {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 Confirm
@@ -122,7 +124,7 @@ export function PlanCard({ plan }: { plan: Plan }) {
           <button
             onClick={() => setConfirm(true)}
             className={cn(
-              "mt-3 flex w-full items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-bold transition-all active:scale-[0.98]",
+              "flex w-full items-center justify-center gap-1.5 rounded-xl border py-2.5 text-sm font-bold transition-all active:scale-[0.97]",
               style.accent, style.badge,
             )}
           >
@@ -136,7 +138,7 @@ export function PlanCard({ plan }: { plan: Plan }) {
 
 function Metric({ icon: Icon, tint, label, value }: { icon: typeof Coins; tint: string; label: string; value: string }) {
   return (
-    <div className="px-2 py-2.5">
+    <div className="px-2 py-2.5 text-center">
       <Icon className={cn("mx-auto h-3.5 w-3.5", tint)} />
       <p className="mt-1 text-[9px] uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="text-xs font-bold tabular-nums">{value}</p>

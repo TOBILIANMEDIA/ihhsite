@@ -29,19 +29,22 @@ export function BottomNav() {
               key={tab.href}
               href={tab.href}
               className={cn(
-                'group flex flex-1 flex-col items-center gap-1 py-3 transition-all duration-200',
+                'group flex flex-1 flex-col items-center gap-1 py-3 transition-all duration-200 active:scale-[0.92]',
                 active ? 'text-primary' : 'text-muted-foreground',
               )}
               aria-current={active ? 'page' : undefined}
             >
               <span className={cn(
-                'flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200',
+                'relative flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200',
                 active ? 'bg-primary/15 text-primary' : 'group-hover:bg-secondary',
               )}>
-                <tab.icon className="h-4.5 w-4.5" strokeWidth={active ? 2.5 : 1.8} />
+                {active && (
+                  <span className="absolute inset-0 animate-ping rounded-xl bg-primary/20 duration-700" style={{ animationIterationCount: 1 }} />
+                )}
+                <tab.icon className="h-4.5 w-4.5 transition-transform duration-200" strokeWidth={active ? 2.5 : 1.8} />
               </span>
               <span className={cn(
-                'text-[10px] font-semibold tracking-wide transition-all',
+                'text-[10px] font-semibold tracking-wide transition-all duration-200',
                 active ? 'text-primary' : 'text-muted-foreground',
               )}>
                 {tab.label}

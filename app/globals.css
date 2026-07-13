@@ -3,6 +3,7 @@
 @import 'shadcn/tailwind.css';
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant light (&:is(.light *));
 
 @theme inline {
   --font-sans: 'Space Grotesk Variable', 'Inter Variable', system-ui, sans-serif;
@@ -44,24 +45,20 @@
 }
 
 /* C.I.Limited — Construction Investment Limited */
-/* Palette: Deep charcoal · Ash grey · Off-white · Greyish cyan accent */
+/* Default = DARK theme */
 :root {
-  /* Backgrounds — near-black charcoal, not pure black */
   --background: oklch(0.13 0.008 220);
   --foreground: oklch(0.96 0.005 220);
 
-  /* Cards — slightly lighter than background */
   --card: oklch(0.17 0.01 220);
   --card-foreground: oklch(0.96 0.005 220);
 
   --popover: oklch(0.16 0.01 220);
   --popover-foreground: oklch(0.96 0.005 220);
 
-  /* Primary = greyish cyan — the C.I.L accent */
-  --primary: oklch(0.65 0.08 210);
-  --primary-foreground: oklch(0.09 0.01 220);
+  --primary: oklch(0.62 0.09 210);
+  --primary-foreground: oklch(0.98 0.005 210);
 
-  /* Secondary = ash grey surface */
   --secondary: oklch(0.22 0.01 220);
   --secondary-foreground: oklch(0.90 0.005 220);
 
@@ -71,15 +68,12 @@
   --accent: oklch(0.25 0.02 210);
   --accent-foreground: oklch(0.90 0.005 220);
 
-  /* Brand = same as primary */
-  --brand: oklch(0.65 0.08 210);
-  --brand-foreground: oklch(0.09 0.01 220);
+  --brand: oklch(0.62 0.09 210);
+  --brand-foreground: oklch(0.98 0.005 210);
 
-  /* CIL cyan — brighter tint for highlights */
-  --cil-cyan: oklch(0.65 0.08 210);
-  --cil-cyan-foreground: oklch(0.09 0.01 220);
+  --cil-cyan: oklch(0.62 0.09 210);
+  --cil-cyan-foreground: oklch(0.98 0.005 210);
 
-  /* Success — construction go-green */
   --success: oklch(0.70 0.14 155);
   --success-foreground: oklch(0.12 0.03 155);
 
@@ -87,9 +81,48 @@
 
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 10%);
-  --ring: oklch(0.65 0.08 210 / 60%);
+  --ring: oklch(0.62 0.09 210 / 60%);
 
   --radius: 0.75rem;
+}
+
+/* LIGHT theme — applied when html has class="light" */
+.light {
+  --background: oklch(0.97 0.004 220);
+  --foreground: oklch(0.16 0.01 220);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.16 0.01 220);
+
+  --popover: oklch(0.99 0.003 220);
+  --popover-foreground: oklch(0.16 0.01 220);
+
+  --primary: oklch(0.50 0.10 210);
+  --primary-foreground: oklch(0.98 0.005 210);
+
+  --secondary: oklch(0.92 0.005 220);
+  --secondary-foreground: oklch(0.22 0.01 220);
+
+  --muted: oklch(0.93 0.004 220);
+  --muted-foreground: oklch(0.50 0.01 220);
+
+  --accent: oklch(0.90 0.01 210);
+  --accent-foreground: oklch(0.22 0.01 220);
+
+  --brand: oklch(0.50 0.10 210);
+  --brand-foreground: oklch(0.98 0.005 210);
+
+  --cil-cyan: oklch(0.50 0.10 210);
+  --cil-cyan-foreground: oklch(0.98 0.005 210);
+
+  --success: oklch(0.55 0.14 155);
+  --success-foreground: oklch(0.96 0.01 155);
+
+  --destructive: oklch(0.55 0.20 25);
+
+  --border: oklch(0 0 0 / 10%);
+  --input: oklch(0 0 0 / 8%);
+  --ring: oklch(0.50 0.10 210 / 50%);
 }
 
 @layer base {
@@ -100,6 +133,7 @@
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
   html {
     @apply font-sans;
@@ -108,6 +142,11 @@
     font-family: var(--font-heading);
     font-weight: 700;
     letter-spacing: -0.02em;
+  }
+  /* Smooth theme transitions on all common surface elements */
+  .bg-card, .bg-secondary, .bg-background, .bg-muted,
+  header, nav, [class*="border-"] {
+    transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
   }
 }
 
