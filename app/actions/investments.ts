@@ -89,8 +89,10 @@ export async function buyPlan(planId: number, opts?: { autoReinvest?: boolean })
 async function payReferralCommission(buyerId: string, amount: number) {
   const refs = await db.select().from(referral).where(eq(referral.referredId, buyerId))
   for (const r of refs) {
-    // Determine rate: promoters use their per-user override if set, else the
-    // site-wide promoterLevel1 default. Normal users use referralLevel1/2.
+    // Only pay once — skip if this referral has already been settled.
+    if (r.commissionPaid) continue
+
+    // Determine rate
     let rate = r.level === 1 ? SITE.referralLevel1 : SITE.referralLevel2
     if (r.level === 1) {
       const [referrerProfile] = await db.select().from(profile).where(eq(profile.userId, r.referrerId))
@@ -111,9 +113,13 @@ async function payReferralCommission(buyerId: string, amount: number) {
       })
       .where(eq(wallet.userId, r.referrerId))
 
+    // Mark as paid and record the commission amount — will never fire again.
     await db
       .update(referral)
-      .set({ totalCommission: sql`${referral.totalCommission} + ${commission}` })
+      .set({
+        totalCommission: sql`${referral.totalCommission} + ${commission}`,
+        commissionPaid: true,
+      })
       .where(eq(referral.id, r.id))
 
     await db.insert(transaction).values({
