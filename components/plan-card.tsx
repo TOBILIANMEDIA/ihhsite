@@ -119,6 +119,18 @@ export function PlanCard({ plan, slot }: { plan: Plan; slot?: SlotInfo }) {
           </div>
         )}
 
+        {/* Slot circle badge — top-right of image */}
+        {hasLimit && !isSoldOut && (
+          <div className={cn(
+            "absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-full shadow-lg ring-2 ring-white/20",
+            style.btnBg,
+          )}>
+            <span className={cn("text-sm font-extrabold tabular-nums leading-none", style.btnText)}>
+              {remaining}
+            </span>
+          </div>
+        )}
+
         {/* Overlay badges */}
         <div className="absolute bottom-2.5 left-3 right-3 flex items-end justify-between">
           <div>
@@ -158,16 +170,7 @@ export function PlanCard({ plan, slot }: { plan: Plan; slot?: SlotInfo }) {
           <span className={cn("text-sm font-bold tabular-nums", style.text)}>{formatNaira(plan.total)}</span>
         </div>
 
-        {/* Circular slot indicator (only when admin has set a limit and not sold out) */}
-        {hasLimit && !isSoldOut && (
-          <div className="mb-3 flex items-center gap-2.5">
-            <SlotRing remaining={remaining!} total={totalSlots!} fillPct={fillPct} barClass={style.bar} textClass={style.text} />
-            <p className="text-[10px] leading-tight text-muted-foreground">
-              Limited units<br />
-              <span className={cn("font-semibold", style.text)}>{remaining} of {totalSlots} remaining</span>
-            </p>
-          </div>
-        )}
+
 
         {/* Action buttons */}
         {isSoldOut ? (
@@ -218,43 +221,6 @@ export function PlanCard({ plan, slot }: { plan: Plan; slot?: SlotInfo }) {
   )
 }
 
-/** Circular SVG ring showing remaining slots as a progress arc with the count in the centre. */
-function SlotRing({ remaining, total, fillPct, barClass, textClass }: {
-  remaining: number; total: number; fillPct: number; barClass: string; textClass: string
-}) {
-  const SIZE = 36
-  const R = 14
-  const CIRCUMFERENCE = 2 * Math.PI * R
-  // fillPct represents sold percentage; we want remaining arc so invert it
-  const soldPct = fillPct / 100
-  const dashOffset = CIRCUMFERENCE * soldPct // how much of the arc is "consumed"
-
-  return (
-    <div className="relative shrink-0" style={{ width: SIZE, height: SIZE }}>
-      <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} className="-rotate-90">
-        {/* Track */}
-        <circle cx={SIZE / 2} cy={SIZE / 2} r={R} fill="none" strokeWidth={3} className="stroke-secondary" />
-        {/* Remaining arc — starts full, shrinks as sold count rises */}
-        <circle
-          cx={SIZE / 2} cy={SIZE / 2} r={R}
-          fill="none"
-          strokeWidth={3}
-          strokeLinecap="round"
-          strokeDasharray={CIRCUMFERENCE}
-          strokeDashoffset={dashOffset}
-          className={cn("transition-all duration-500", barClass.replace("bg-", "stroke-"))}
-        />
-      </svg>
-      {/* Centre number */}
-      <span className={cn(
-        "absolute inset-0 flex items-center justify-center text-[9px] font-bold tabular-nums leading-none",
-        textClass,
-      )}>
-        {remaining}
-      </span>
-    </div>
-  )
-}
 
 function Stat({ label, value, icon, tint }: { label: string; value: string; icon: React.ReactNode; tint: string }) {
   return (
