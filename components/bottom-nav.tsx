@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, HardHat, Users, User } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const tabs = [
   { href: '/dashboard', label: 'Home',     icon: Home    },
