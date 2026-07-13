@@ -42,6 +42,7 @@ import {
   ChevronDown,
   Zap,
   Unlock,
+  Search,
 } from "lucide-react"
 import { toast } from "sonner"
 import { SITE, formatNaira } from "@/lib/plans"
@@ -456,8 +457,20 @@ export function AdminDashboard(initial: AdminData & { planSlots?: SlotRow[] }) {
 function TransactionsTab({ items, onAction }: { items: Txn[]; onAction: () => void }) {
   const [pending, startTransition] = useTransition()
   const [filter, setFilter] = useState<string>("all")
+  const [search, setSearch] = useState("")
   const types = ["all", "deposit", "withdrawal", "earning", "bonus", "referral", "adjustment"]
-  const filtered = filter === "all" ? items : items.filter((t) => t.type === filter)
+  const filtered = items
+    .filter((t) => filter === "all" || t.type === filter)
+    .filter((t) => {
+      if (!search.trim()) return true
+      const q = search.toLowerCase()
+      return (
+        (t.userName ?? "").toLowerCase().includes(q) ||
+        (t.userEmail ?? "").toLowerCase().includes(q) ||
+        (t.description ?? "").toLowerCase().includes(q) ||
+        String(t.amount).includes(q)
+      )
+    })
 
   const handleDelete = (id: number) => {
     if (!confirm("Permanently delete this transaction? This cannot be undone.")) return
@@ -481,6 +494,16 @@ function TransactionsTab({ items, onAction }: { items: Txn[]; onAction: () => vo
         <Receipt className="h-4 w-4 text-primary" />
         <h3 className="text-sm font-bold">Live Transactions</h3>
         <span className="ml-auto text-xs text-muted-foreground">{filtered.length} shown</span>
+      </div>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by user, email, description, amount..."
+          className="w-full rounded-xl border border-border bg-secondary/50 py-2.5 pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-primary/60 transition-colors"
+        />
       </div>
       <div className="no-scrollbar flex gap-2 overflow-x-auto">
         {types.map((t) => (
@@ -781,6 +804,20 @@ function Overview({ stats, controls, onAction, planSlots }: { stats: Stats; cont
 
 function Withdrawals({ items, onAction }: { items: Withdrawal[]; onAction: () => void }) {
   const [pending, startTransition] = useTransition()
+  const [search, setSearch] = useState("")
+
+  const filtered = items.filter((w) => {
+    if (!search.trim()) return true
+    const q = search.toLowerCase()
+    return (
+      (w.userName ?? "").toLowerCase().includes(q) ||
+      (w.userEmail ?? "").toLowerCase().includes(q) ||
+      (w.accountName ?? "").toLowerCase().includes(q) ||
+      (w.accountNumber ?? "").includes(q) ||
+      (w.bankName ?? "").toLowerCase().includes(q) ||
+      String(w.amount).includes(q)
+    )
+  })
 
   function act(id: number, kind: "approve" | "reject") {
     startTransition(async () => {
@@ -800,7 +837,18 @@ function Withdrawals({ items, onAction }: { items: Withdrawal[]; onAction: () =>
 
   return (
     <div className="flex flex-col gap-3">
-      {items.map((w) => (
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by user, bank, account number, amount..."
+          className="w-full rounded-xl border border-border bg-secondary/50 py-2.5 pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-primary/60 transition-colors"
+        />
+      </div>
+      {filtered.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">No results</p>}
+      {filtered.map((w) => (
         <div key={w.id} className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-start justify-between">
             <div>
@@ -852,8 +900,11 @@ function Withdrawals({ items, onAction }: { items: Withdrawal[]; onAction: () =>
   )
 }
 
+
+
 function UsersTab({ items }: { items: AdminUser[] }) {
   const [pending, startTransition] = useTransition()
+  const [userSearch, setUserSearch] = useState("")
   const [editing, setEditing] = useState<string | null>(null)
   const [amount, setAmount] = useState("")
   const [note, setNote] = useState("")
@@ -910,11 +961,32 @@ function UsersTab({ items }: { items: AdminUser[] }) {
     })
   }
 
+  const filteredUsers = items.filter((u) => {
+    if (!userSearch.trim()) return true
+    const q = userSearch.toLowerCase()
+    return (
+      (u.name ?? "").toLowerCase().includes(q) ||
+      (u.email ?? "").toLowerCase().includes(q)
+    )
+  })
+
   if (items.length === 0) return <Empty label="No users" />
 
   return (
     <div className="flex flex-col gap-3">
-      {items.map((u) => (
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          value={userSearch}
+          onChange={(e) => setUserSearch(e.target.value)}
+          placeholder="Search by name or email..."
+          className="w-full rounded-xl border border-border bg-secondary/50 py-2.5 pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-primary/60 transition-colors"
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">{filteredUsers.length} of {items.length} users</p>
+      {filteredUsers.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">No results</p>}
+      {filteredUsers.map((u) => (
         <div key={u.id} className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0">
@@ -1516,10 +1588,35 @@ function DepositCard({
 }
 
 function DepositsTab({ items, onAction }: { items: Deposit[]; onAction: () => void }) {
+  const [search, setSearch] = useState("")
+
+  const filtered = items.filter((dep) => {
+    if (!search.trim()) return true
+    const q = search.toLowerCase()
+    return (
+      (dep.userName ?? "").toLowerCase().includes(q) ||
+      (dep.userEmail ?? "").toLowerCase().includes(q) ||
+      (dep.reference ?? "").toLowerCase().includes(q) ||
+      String(dep.amount).includes(q)
+    )
+  })
+
   if (items.length === 0) return <Empty label="No deposits" />
+
   return (
     <div className="flex flex-col gap-3">
-      {items.map((dep) => (
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by user, email, reference, amount..."
+          className="w-full rounded-xl border border-border bg-secondary/50 py-2.5 pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-primary/60 transition-colors"
+        />
+      </div>
+      {filtered.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">No results</p>}
+      {filtered.map((dep) => (
         <DepositCard key={dep.id} dep={dep} onAction={onAction} />
       ))}
     </div>
@@ -2650,7 +2747,7 @@ function GamesAdminTab({
   )
 }
 
-// ── Financials Tab ───────────���────────────────────────────────────────────────
+// ── Financials Tab ───────────����────────────────────────────────────────────────
 function FinancialsTab({ data }: { data: Financials }) {
   const cards = [
     { label: "Withdrawal Charges (Revenue)", value: data.withdrawalCharges, color: "text-success" },
