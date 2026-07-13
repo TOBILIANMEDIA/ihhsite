@@ -13,6 +13,7 @@ import { BalanceCard } from "@/components/balance-card"
 import { QuickActions } from "@/components/quick-actions"
 import { PlanCard } from "@/components/plan-card"
 import { ActiveInvestments } from "@/components/active-investments"
+import { DailyBonusStrip } from "@/components/daily-bonus-strip"
 import { WelcomePopup } from "@/components/welcome-popup"
 import { PendingDepositPopup } from "@/components/pending-deposit-popup"
 import { PageTransition } from "@/components/page-transition"
@@ -66,7 +67,9 @@ export default async function DashboardPage() {
 
         <BalanceCard balance={data.balance} todayIncome={todayIncome} />
 
-        <QuickActions signedInToday={data.signedInToday} />
+        <QuickActions />
+
+        <DailyBonusStrip signedInToday={data.signedInToday} />
 
         <ActiveInvestments investments={investments} />
 
