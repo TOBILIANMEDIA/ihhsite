@@ -435,7 +435,7 @@ export function AdminDashboard(initial: AdminData & { planSlots?: SlotRow[] }) {
           ))}
         </div>
 
-        {tab === "Overview" && <Overview stats={stats} controls={controls} onAction={() => refresh()} />}
+        {tab === "Overview" && <Overview stats={stats} controls={controls} onAction={() => refresh()} planSlots={initialPlanSlots ?? []} />}
         {tab === "Financials" && <FinancialsTab data={financials} />}
         {tab === "Games" && <GamesAdminTab spins={spins} vaults={vaults} drawSlots={drawSlots} drawRounds={drawRounds} gameStats={gameStats} gameConfig={gameConfig} onAction={() => refresh()} />}
         {tab === "Investments" && <InvestmentsTab items={investments} onAction={() => refresh()} />}
@@ -529,7 +529,7 @@ function TransactionsTab({ items, onAction }: { items: Txn[]; onAction: () => vo
   )
 }
 
-function Overview({ stats, controls, onAction }: { stats: Stats; controls: Controls; onAction: () => void }) {
+function Overview({ stats, controls, onAction, planSlots }: { stats: Stats; controls: Controls; onAction: () => void; planSlots: SlotRow[] }) {
   const [pending, startTransition] = useTransition()
   const [siteFrozen, setSiteFrozenState] = useState(controls.siteFrozen)
   const [depositsPaused, setDepPaused] = useState(controls.depositsPaused)
@@ -640,7 +640,7 @@ function Overview({ stats, controls, onAction }: { stats: Stats; controls: Contr
       </button>
 
       {/* Plan Slot Control */}
-  <PlanSlotsPanel initialSlots={initialPlanSlots ?? []} />
+      <PlanSlotsPanel initialSlots={planSlots} />
 
   {/* Platform Data Reset */}
       <div className="rounded-2xl border border-destructive/30 bg-card p-4">
