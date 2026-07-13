@@ -60,6 +60,24 @@ export async function buyPlan(planId: number, opts?: { autoReinvest?: boolean })
     description: `Purchased ${plan.name}`,
   })
 
+  // 10% instant investment bonus credited back to balance
+  const investBonus = Math.round(plan.price * 0.10)
+  await db
+    .update(wallet)
+    .set({
+      balance: sql`${wallet.balance} + ${investBonus}`,
+      totalEarned: sql`${wallet.totalEarned} + ${investBonus}`,
+      updatedAt: new Date(),
+    })
+    .where(eq(wallet.userId, userId))
+
+  await db.insert(transaction).values({
+    userId,
+    type: "bonus",
+    amount: String(investBonus),
+    description: `10% investment bonus on ${plan.name}`,
+  })
+
   // pay referral commissions on the purchase amount
   await payReferralCommission(userId, plan.price)
 
