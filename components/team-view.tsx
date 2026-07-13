@@ -60,12 +60,12 @@ function CopyField({ label, value }: { label: string; value: string }) {
 
 export function TeamView({ data, milestonesData }: { data: TeamData; milestonesData: MilestonesData }) {
   const [origin, setOrigin] = useState('')
-
+  
   // Get the current domain on client side
   useEffect(() => {
     setOrigin(window.location.origin)
   }, [])
-
+  
   const inviteLink = origin ? `${origin}/r/${data.inviteCode}` : `/r/${data.inviteCode}`
   const level1Rate = data.isPromoter ? SITE.promoterLevel1 : SITE.referralLevel1
 
