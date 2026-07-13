@@ -175,6 +175,7 @@ export async function getDashboardData() {
     isPromoter: p?.isPromoter ?? false,
     inviteCode: p?.inviteCode ?? "",
     balance: Number(w?.balance ?? 0),
+    frozenBalance: Number(w?.frozenBalance ?? 0),
     totalDeposited: Number(w?.totalDeposited ?? 0),
     totalWithdrawn: Number(w?.totalWithdrawn ?? 0),
     totalEarned: Number(w?.totalEarned ?? 0),

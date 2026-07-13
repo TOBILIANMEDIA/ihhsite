@@ -60,6 +60,9 @@ export async function buyPlan(planId: number, opts?: { autoReinvest?: boolean })
     description: `Purchased ${plan.name}`,
   })
 
+  // Unfreeze any referral earnings now that the user has deposited + invested
+  await unfreezeReferralBalance(userId)
+
   // pay referral commissions on the purchase amount
   await payReferralCommission(userId, plan.price)
 
@@ -74,24 +77,45 @@ async function payReferralCommission(buyerId: string, amount: number) {
     // Determine rate: promoters use their per-user override if set, else the
     // site-wide promoterLevel1 default. Normal users use referralLevel1/2.
     let rate = r.level === 1 ? SITE.referralLevel1 : SITE.referralLevel2
-    if (r.level === 1) {
-      const [referrerProfile] = await db.select().from(profile).where(eq(profile.userId, r.referrerId))
-      if (referrerProfile?.isPromoter) {
-        rate = referrerProfile.promoterCommission ?? SITE.promoterLevel1
-      }
+    const [referrerProfile] = await db.select().from(profile).where(eq(profile.userId, r.referrerId))
+    if (r.level === 1 && referrerProfile?.isPromoter) {
+      rate = referrerProfile.promoterCommission ?? SITE.promoterLevel1
     }
     const commission = Math.round((amount * rate) / 100)
     if (commission <= 0) continue
 
-    await db
-      .update(wallet)
-      .set({
-        balance: sql`${wallet.balance} + ${commission}`,
-        referralEarnings: sql`${wallet.referralEarnings} + ${commission}`,
-        totalEarned: sql`${wallet.totalEarned} + ${commission}`,
-        updatedAt: new Date(),
-      })
-      .where(eq(wallet.userId, r.referrerId))
+    // Check if referrer has ever made an investment (deposited + invested).
+    // If not, send earnings to frozenBalance instead of spendable balance.
+    const [referrerWallet] = await db.select().from(wallet).where(eq(wallet.userId, r.referrerId))
+    const hasDeposited = Number(referrerWallet?.totalDeposited ?? 0) > 0
+    const referrerInvestments = hasDeposited
+      ? await db.select({ id: investment.id }).from(investment).where(eq(investment.userId, r.referrerId)).limit(1)
+      : []
+    const hasInvested = referrerInvestments.length > 0
+
+    if (hasDeposited && hasInvested) {
+      // Qualified referrer — credit live balance
+      await db
+        .update(wallet)
+        .set({
+          balance: sql`${wallet.balance} + ${commission}`,
+          referralEarnings: sql`${wallet.referralEarnings} + ${commission}`,
+          totalEarned: sql`${wallet.totalEarned} + ${commission}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(wallet.userId, r.referrerId))
+    } else {
+      // Unqualified referrer — freeze the commission until they deposit & invest
+      await db
+        .update(wallet)
+        .set({
+          frozenBalance: sql`${wallet.frozenBalance} + ${commission}`,
+          referralEarnings: sql`${wallet.referralEarnings} + ${commission}`,
+          totalEarned: sql`${wallet.totalEarned} + ${commission}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(wallet.userId, r.referrerId))
+    }
 
     await db
       .update(referral)
@@ -102,9 +126,37 @@ async function payReferralCommission(buyerId: string, amount: number) {
       userId: r.referrerId,
       type: "referral",
       amount: String(commission),
-      description: `Level ${r.level} referral commission (${rate}%)`,
+      description: hasDeposited && hasInvested
+        ? `Level ${r.level} referral commission (${rate}%)`
+        : `Level ${r.level} referral commission (${rate}%) — frozen until you deposit & invest`,
     })
   }
+}
+
+/**
+ * Called when a user completes their first investment.
+ * Moves any frozenBalance into their spendable balance.
+ */
+async function unfreezeReferralBalance(userId: string) {
+  const [w] = await db.select().from(wallet).where(eq(wallet.userId, userId))
+  const frozen = Number(w?.frozenBalance ?? 0)
+  if (frozen <= 0) return
+
+  await db
+    .update(wallet)
+    .set({
+      balance: sql`${wallet.balance} + ${frozen}`,
+      frozenBalance: sql`0`,
+      updatedAt: new Date(),
+    })
+    .where(eq(wallet.userId, userId))
+
+  await db.insert(transaction).values({
+    userId,
+    type: "bonus",
+    amount: String(frozen),
+    description: `Frozen referral earnings unlocked — deposit & invest requirement met`,
+  })
 }
 
 /** Public — returns slot data for all plans so cards can show sold-out state. */

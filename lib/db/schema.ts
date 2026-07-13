@@ -83,10 +83,15 @@ export const wallet = pgTable("wallet", {
   id: serial("id").primaryKey(),
   userId: text("userId").notNull().unique(),
   balance: numeric("balance", { precision: 14, scale: 2 }).notNull().default("0"),
+  // Frozen balance: referral commissions earned before the referrer has deposited+invested.
+  // Automatically released to balance once the user makes their first investment.
+  frozenBalance: numeric("frozenBalance", { precision: 14, scale: 2 }).notNull().default("0"),
   totalDeposited: numeric("totalDeposited", { precision: 14, scale: 2 }).notNull().default("0"),
   totalWithdrawn: numeric("totalWithdrawn", { precision: 14, scale: 2 }).notNull().default("0"),
   totalEarned: numeric("totalEarned", { precision: 14, scale: 2 }).notNull().default("0"),
   referralEarnings: numeric("referralEarnings", { precision: 14, scale: 2 }).notNull().default("0"),
+  // Tracks the last approved withdrawal time for 23-hour cooldown enforcement.
+  lastWithdrawalAt: timestamp("lastWithdrawalAt"),
   updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 })
 
