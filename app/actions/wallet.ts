@@ -116,14 +116,26 @@ export async function redeemGiftCode(code: string) {
     code: clean,
     amount: String(amount),
   })
+
+  // Upsert wallet — ensures a row always exists before we try to credit it.
+  // If the user visits the gift-code form before ever loading the dashboard
+  // their wallet row may not exist yet; a plain UPDATE would silently credit nothing.
   await db
-    .update(wallet)
-    .set({
-      balance: sql`${wallet.balance} + ${amount}`,
-      totalEarned: sql`${wallet.totalEarned} + ${amount}`,
+    .insert(wallet)
+    .values({
+      userId,
+      balance: String(amount),
+      totalEarned: String(amount),
       updatedAt: new Date(),
     })
-    .where(eq(wallet.userId, userId))
+    .onConflictDoUpdate({
+      target: wallet.userId,
+      set: {
+        balance: sql`${wallet.balance} + ${amount}`,
+        totalEarned: sql`${wallet.totalEarned} + ${amount}`,
+        updatedAt: new Date(),
+      },
+    })
   await db.insert(transaction).values({
     userId,
     type: "bonus",
