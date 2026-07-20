@@ -24,21 +24,21 @@ export const PLAN_TIERS: Record<number, { phase: string; label: string; color: s
   12: { phase: 'Skyline',    label: 'SK-03', color: 'text-amber-400' },
 }
 
-// All plans run 90 days. Daily returns scale from ₦800/day at entry level.
+// All plans run 90 days. Daily returns = 21% of investment price.
 // Total = daily × 90
 export const PLANS: Plan[] = [
-  { id: 1,  name: 'Foundation F-01', price: 3000,   daily: 800,    total: 72000,    durationDays: 90 },
-  { id: 2,  name: 'Foundation F-02', price: 6000,   daily: 1400,   total: 126000,   durationDays: 90 },
-  { id: 3,  name: 'Foundation F-03', price: 10000,  daily: 2800,   total: 252000,   durationDays: 90 },
-  { id: 4,  name: 'Structure S-01',  price: 15000,  daily: 4200,   total: 378000,   durationDays: 90 },
-  { id: 5,  name: 'Structure S-02',  price: 20000,  daily: 5600,   total: 504000,   durationDays: 90 },
-  { id: 6,  name: 'Structure S-03',  price: 30000,  daily: 8400,   total: 756000,   durationDays: 90, popular: true },
-  { id: 7,  name: 'Framework FW-01', price: 50000,  daily: 14000,  total: 1260000,  durationDays: 90 },
-  { id: 8,  name: 'Framework FW-02', price: 80000,  daily: 22400,  total: 2016000,  durationDays: 90 },
-  { id: 9,  name: 'Framework FW-03', price: 100000, daily: 28000,  total: 2520000,  durationDays: 90 },
-  { id: 10, name: 'Skyline SK-01',   price: 200000, daily: 56000,  total: 5040000,  durationDays: 90 },
-  { id: 11, name: 'Skyline SK-02',   price: 300000, daily: 84000,  total: 7560000,  durationDays: 90 },
-  { id: 12, name: 'Skyline SK-03',   price: 500000, daily: 140000, total: 12600000, durationDays: 90 },
+  { id: 1,  name: 'Foundation F-01', price: 4000,   daily: 840,    total: 75600,    durationDays: 90 },
+  { id: 2,  name: 'Foundation F-02', price: 6500,   daily: 1365,   total: 122850,   durationDays: 90 },
+  { id: 3,  name: 'Foundation F-03', price: 10000,  daily: 2100,   total: 189000,   durationDays: 90 },
+  { id: 4,  name: 'Structure S-01',  price: 15000,  daily: 3150,   total: 283500,   durationDays: 90 },
+  { id: 5,  name: 'Structure S-02',  price: 20000,  daily: 4200,   total: 378000,   durationDays: 90 },
+  { id: 6,  name: 'Structure S-03',  price: 30000,  daily: 6300,   total: 567000,   durationDays: 90, popular: true },
+  { id: 7,  name: 'Framework FW-01', price: 50000,  daily: 10500,  total: 945000,   durationDays: 90 },
+  { id: 8,  name: 'Framework FW-02', price: 80000,  daily: 16800,  total: 1512000,  durationDays: 90 },
+  { id: 9,  name: 'Framework FW-03', price: 100000, daily: 21000,  total: 1890000,  durationDays: 90 },
+  { id: 10, name: 'Skyline SK-01',   price: 200000, daily: 42000,  total: 3780000,  durationDays: 90 },
+  { id: 11, name: 'Skyline SK-02',   price: 300000, daily: 63000,  total: 5670000,  durationDays: 90 },
+  { id: 12, name: 'Skyline SK-03',   price: 500000, daily: 105000, total: 9450000,  durationDays: 90 },
 ]
 
 export const SITE = {
@@ -49,9 +49,9 @@ export const SITE = {
   welcomeBonus: 600,
   investmentBonusPercent: 10,
   minWithdrawal: 1000,
-  minDeposit: 3000,
+  minDeposit: 4000,
   withdrawalCharge: 18,
-  referralLevel1: 20,
+  referralLevel1: 21,
   referralLevel2: 3,
   promoterLevel1: 30,
   withdrawalHours: '9 AM – 5 PM',

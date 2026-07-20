@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils"
 
 type Props = {
   name: string; email: string; phone: string; role: string; inviteCode: string
-  balance: number; totalDeposited: number; totalEarned: number; referralEarnings: number
+  balance: number; frozenBalance: number; totalDeposited: number; totalEarned: number; referralEarnings: number
 }
 
 export function ProfileView(props: Props) {
@@ -75,59 +75,77 @@ export function ProfileView(props: Props) {
 
   return (
     <main className="mx-auto flex max-w-md flex-col gap-4 px-4 py-5">
-      {/* Identity card */}
-      <section className="relative overflow-hidden rounded-2xl border border-border/60 bg-card p-5">
-        <div className="pointer-events-none absolute inset-0 opacity-[0.025]"
-          style={{ backgroundImage: 'repeating-linear-gradient(0deg, oklch(1 0 0) 0px, oklch(1 0 0) 1px, transparent 1px, transparent 32px), repeating-linear-gradient(90deg, oklch(1 0 0) 0px, oklch(1 0 0) 1px, transparent 1px, transparent 32px)' }}
-        />
-        <div className="pointer-events-none absolute -right-4 -top-4 h-20 w-20 rounded-full bg-primary/15 blur-2xl" />
-
-        <div className="relative flex items-center gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/15 text-lg font-black text-primary">
-            {initials}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-base font-bold leading-tight">{props.name}</h2>
-            <p className="truncate text-xs text-muted-foreground">{props.email}</p>
-            {props.phone && <p className="text-xs text-muted-foreground">{props.phone}</p>}
-          </div>
-          <Logo className="h-8 w-8 shrink-0 opacity-60" />
+      {/* Header with user info */}
+      <section className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Welcome back</p>
+          <h2 className="text-xl font-bold leading-tight">{props.name}</h2>
         </div>
-
-        {/* Balance */}
-        <div className="relative mt-4 flex items-center justify-between rounded-xl border border-border/60 bg-secondary/50 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Wallet className="h-4 w-4 text-primary" />
-            <span className="text-xs text-muted-foreground">Balance</span>
-          </div>
-          <span className="text-base font-bold tabular-nums">{formatNaira(props.balance)}</span>
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-primary/30 bg-primary/15 text-sm font-black text-primary">
+          {initials}
         </div>
-
-        {/* Invite code */}
-        <button
-          onClick={copyInvite}
-          className="relative mt-2 flex w-full items-center justify-between rounded-xl border border-primary/20 bg-primary/8 px-4 py-2.5 transition-all hover:bg-primary/15 active:scale-[0.99]"
-        >
-          <div className="flex flex-col items-start">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Invite Code</span>
-            <span className="text-sm font-black text-primary">{props.inviteCode}</span>
-          </div>
-          {copied ? <CheckCheck className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
-        </button>
       </section>
 
-      {/* Stats */}
-      <section className="grid grid-cols-3 gap-2.5">
-        {[
-          { label: "Deposited",  value: formatNaira(props.totalDeposited), tint: "text-foreground"  },
-          { label: "Earned",     value: formatNaira(props.totalEarned),    tint: "text-success"     },
-          { label: "Referral",   value: formatNaira(props.referralEarnings), tint: "text-primary"   },
-        ].map((s) => (
-          <div key={s.label} className="flex flex-col gap-1 rounded-xl border border-border/60 bg-card p-3">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{s.label}</span>
-            <span className={cn("text-sm font-bold tabular-nums leading-tight", s.tint)}>{s.value}</span>
+      {/* Gradient wallet cards */}
+      <section className="space-y-2.5">
+        {/* Active Balance */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-teal-500 to-teal-600 p-5 text-white shadow-md">
+          <div className="pointer-events-none absolute -right-6 -top-6 h-16 w-16 rounded-full bg-white/10 blur-xl" />
+          <p className="relative text-xs font-semibold uppercase tracking-wide opacity-90">Active Balance</p>
+          <p className="relative mt-3 text-3xl font-black tabular-nums">{formatNaira(props.balance)}</p>
+          <p className="relative mt-1 text-xs opacity-80">Available to withdraw</p>
+        </div>
+
+        {/* Frozen Balance */}
+        {props.frozenBalance > 0 && (
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-md">
+            <div className="pointer-events-none absolute -right-6 -top-6 h-16 w-16 rounded-full bg-white/10 blur-xl" />
+            <p className="relative text-xs font-semibold uppercase tracking-wide opacity-90">Frozen Balance</p>
+            <p className="relative mt-3 text-3xl font-black tabular-nums">{formatNaira(props.frozenBalance)}</p>
+            <p className="relative mt-1 text-xs opacity-80">Unlocks after your first investment</p>
           </div>
-        ))}
+        )}
+
+        {/* Total Balance */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-500 to-green-600 p-5 text-white shadow-md">
+          <div className="pointer-events-none absolute -right-6 -top-6 h-16 w-16 rounded-full bg-white/10 blur-xl" />
+          <p className="relative text-xs font-semibold uppercase tracking-wide opacity-90">Total Balance</p>
+          <p className="relative mt-3 text-3xl font-black tabular-nums">{formatNaira(props.balance + props.frozenBalance)}</p>
+          <p className="relative mt-1 text-xs opacity-80">Active + Frozen</p>
+        </div>
+      </section>
+
+      {/* Earnings breakdown */}
+      <section className="grid grid-cols-2 gap-3">
+        <div className="rounded-2xl border border-border bg-card/50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total Earned</p>
+          <p className="mt-3 text-2xl font-black text-success tabular-nums">{formatNaira(props.totalEarned)}</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card/50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Referral Income</p>
+          <p className="mt-3 text-2xl font-black text-primary tabular-nums">{formatNaira(props.referralEarnings)}</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card/50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total Deposited</p>
+          <p className="mt-3 text-2xl font-black text-sky-500 tabular-nums">{formatNaira(props.totalDeposited)}</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card/50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Account Level</p>
+          <p className="mt-3 text-lg font-bold text-amber-500">{props.role}</p>
+        </div>
+      </section>
+
+      {/* Referral code card */}
+      <section className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Your Referral Code</p>
+        <button
+          onClick={copyInvite}
+          className="mt-3 flex w-full items-center justify-between rounded-xl bg-background/80 px-4 py-3 transition-all hover:bg-background active:scale-95"
+        >
+          <span className="text-lg font-black text-primary">{props.inviteCode}</span>
+          {copied ? <CheckCheck className="h-5 w-5 text-success" /> : <Copy className="h-5 w-5 text-muted-foreground" />}
+        </button>
+        <p className="mt-2 text-xs text-muted-foreground">Share to earn 21% on referrals</p>
       </section>
 
       {/* Grouped menu */}
