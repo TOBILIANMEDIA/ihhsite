@@ -27,7 +27,7 @@ export const PLAN_TIERS: Record<number, { phase: string; label: string; color: s
 // All plans run 90 days. Daily returns scale from ₦800/day at entry level.
 // Total = daily × 90
 export const PLANS: Plan[] = [
-  { id: 1,  name: 'Foundation F-01', price: 3000,   daily: 800,    total: 72000,    durationDays: 90 },
+  { id: 1,  name: 'Foundation F-01', price: 4000,   daily: 800,    total: 72000,    durationDays: 90 },
   { id: 2,  name: 'Foundation F-02', price: 6000,   daily: 1400,   total: 126000,   durationDays: 90 },
   { id: 3,  name: 'Foundation F-03', price: 10000,  daily: 2800,   total: 252000,   durationDays: 90 },
   { id: 4,  name: 'Structure S-01',  price: 15000,  daily: 4200,   total: 378000,   durationDays: 90 },
@@ -49,7 +49,7 @@ export const SITE = {
   welcomeBonus: 600,
   investmentBonusPercent: 10,
   minWithdrawal: 1000,
-  minDeposit: 3000,
+  minDeposit: 4000,
   withdrawalCharge: 18,
   referralLevel1: 20,
   referralLevel2: 3,
