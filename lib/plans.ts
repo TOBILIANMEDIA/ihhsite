@@ -28,7 +28,7 @@ export const PLAN_TIERS: Record<number, { phase: string; label: string; color: s
 // Total = daily × 90
 export const PLANS: Plan[] = [
   { id: 1,  name: 'Foundation F-01', price: 4000,   daily: 800,    total: 72000,    durationDays: 90 },
-  { id: 2,  name: 'Foundation F-02', price: 6000,   daily: 1400,   total: 126000,   durationDays: 90 },
+  { id: 2,  name: 'Foundation F-02', price: 6500,   daily: 1365,   total: 122850,   durationDays: 90 },
   { id: 3,  name: 'Foundation F-03', price: 10000,  daily: 2800,   total: 252000,   durationDays: 90 },
   { id: 4,  name: 'Structure S-01',  price: 15000,  daily: 4200,   total: 378000,   durationDays: 90 },
   { id: 5,  name: 'Structure S-02',  price: 20000,  daily: 5600,   total: 504000,   durationDays: 90 },
@@ -51,7 +51,7 @@ export const SITE = {
   minWithdrawal: 1000,
   minDeposit: 4000,
   withdrawalCharge: 18,
-  referralLevel1: 20,
+  referralLevel1: 21,
   referralLevel2: 3,
   promoterLevel1: 30,
   withdrawalHours: '9 AM – 5 PM',
