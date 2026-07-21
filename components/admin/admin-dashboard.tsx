@@ -217,11 +217,9 @@ type PromoterCode = {
 const TABS = [
   "Overview",
   "Financials",
-  "Games",
   "Investments",
   "Transactions",
   "Withdrawals",
-  "Lucky Draw",
   "Users",
   "Deposits",
   "Bank Accounts",
@@ -443,6 +441,9 @@ export function AdminDashboard(initial: AdminData & { planSlots?: SlotRow[] }) {
         {tab === "Users" && <UsersTab items={users} />}
         {tab === "Deposits" && <DepositsTab items={deposits} onAction={() => refresh()} />}
         {tab === "Bank Accounts" && <BankAccountsTab items={bankAccounts} />}
+
+        {/* Withdrawal Charges Config Section in Overview */}
+        {tab === "Overview" && <WithdrawalChargesConfig onUpdate={() => refresh()} />}
       </div>
     </div>
   )
