@@ -145,9 +145,15 @@ export async function rejectWithdrawal(id: number) {
     .update(withdrawal)
     .set({ status: "rejected", processedAt: new Date() })
     .where(eq(withdrawal.id, id))
+  
+  const refundAmount = Number(w.amount)
   await db
     .update(wallet)
-    .set({ balance: sql`${wallet.balance} + ${Number(w.amount)}`, updatedAt: new Date() })
+    .set({
+      balance: sql`${wallet.balance} + ${refundAmount}`,
+      totalEarned: sql`${wallet.totalEarned} + ${refundAmount}`,
+      updatedAt: new Date(),
+    })
     .where(eq(wallet.userId, w.userId))
   await db.insert(transaction).values({
     userId: w.userId,
@@ -261,9 +267,15 @@ export async function adjustBalance(userId: string, amount: number, note: string
   await requireAdmin()
   const amt = Number(amount)
   if (!amt) return { ok: false, message: "Enter a non-zero amount" }
+  
+  // Only update totalEarned for positive adjustments (credits)
+  const updates = amt > 0
+    ? { balance: sql`${wallet.balance} + ${amt}`, totalEarned: sql`${wallet.totalEarned} + ${amt}`, updatedAt: new Date() }
+    : { balance: sql`${wallet.balance} + ${amt}`, updatedAt: new Date() }
+  
   await db
     .update(wallet)
-    .set({ balance: sql`${wallet.balance} + ${amt}`, updatedAt: new Date() })
+    .set(updates)
     .where(eq(wallet.userId, userId))
   await db.insert(transaction).values({
     userId,
