@@ -85,6 +85,7 @@ import {
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 import { PlanSlotsPanel } from "@/components/admin/plan-slots-panel"
+import { WithdrawalChargesConfig } from "@/components/admin/withdrawal-charges-config"
 
 const POLL_INTERVAL = 20_000 // 20 seconds
 
@@ -530,7 +531,7 @@ function TransactionsTab({ items, onAction }: { items: Txn[]; onAction: () => vo
                   className="ml-auto text-xs font-bold text-red-400 hover:text-red-300 disabled:opacity-50"
                   title="Delete this transaction from all records"
                 >
-                  ✕
+                  ��
                 </button>
               </div>
               <p className="mt-1 truncate text-sm font-medium">{t.userName ?? t.userEmail ?? t.userId.slice(0, 10)}</p>
