@@ -223,11 +223,8 @@ const TABS = [
   "Withdrawals",
   "Lucky Draw",
   "Users",
-  "Gift Codes",
-  "Promoter Codes",
   "Deposits",
   "Bank Accounts",
-  "Milestones",
 ] as const
 type Tab = (typeof TABS)[number]
 
@@ -444,11 +441,8 @@ export function AdminDashboard(initial: AdminData & { planSlots?: SlotRow[] }) {
         {tab === "Withdrawals" && <Withdrawals items={withdrawals} onAction={() => refresh()} />}
         {tab === "Lucky Draw" && <LuckyDrawTab rounds={drawRounds} onAction={() => refresh()} />}
         {tab === "Users" && <UsersTab items={users} />}
-        {tab === "Gift Codes" && <GiftCodesTab items={giftCodes} />}
-        {tab === "Promoter Codes" && <PromoterCodesTab items={promoterCodes} onAction={() => refresh()} />}
         {tab === "Deposits" && <DepositsTab items={deposits} onAction={() => refresh()} />}
         {tab === "Bank Accounts" && <BankAccountsTab items={bankAccounts} />}
-        {tab === "Milestones" && <MilestonesTab items={milestones} />}
       </div>
     </div>
   )
