@@ -120,7 +120,7 @@ function BankPicker({
 // ────────────────────────────────────────────────────────────
 // Main withdraw form
 // ────────────────────────────────────────────────────────────
-export function WithdrawForm({ balance }: { balance: number }) {
+export function WithdrawForm({ balance, totalDeposited = 0 }: { balance: number; totalDeposited?: number }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [loading, setLoading] = useState(true)
@@ -129,6 +129,12 @@ export function WithdrawForm({ balance }: { balance: number }) {
   const [resolveError, setResolveError] = useState("")
   const [hasSaved, setHasSaved] = useState(false)
   const resolveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Time window validation — 9 AM to 5 PM only
+  const now = new Date()
+  const hour = now.getHours()
+  const withinWindow = hour >= 9 && hour < 17
+  const nextOpenHour = hour >= 17 ? "09:00 tomorrow" : `${String(9).padStart(2, '0')}:00 today`
 
   const [form, setForm] = useState({
     amount: "",
@@ -198,13 +204,16 @@ export function WithdrawForm({ balance }: { balance: number }) {
   const amount = Number(form.amount)
   const charge = amount > 0 ? Math.round((amount * SITE.withdrawalCharge) / 100) : 0
   const net = amount - charge
+  const hasDeposited = totalDeposited > 0
   const canSubmit =
     !pending &&
     form.bankName &&
     form.accountNumber.length === 10 &&
     form.accountName &&
     amount >= SITE.minWithdrawal &&
-    amount <= balance
+    amount <= balance &&
+    hasDeposited &&
+    withinWindow
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -371,6 +380,27 @@ export function WithdrawForm({ balance }: { balance: number }) {
               </p>
             )}
           </Field>
+
+          {/* Validation messages */}
+          {!hasDeposited && (
+            <div className="flex items-start gap-2.5 rounded-2xl border border-destructive/30 bg-destructive/10 p-4">
+              <AlertCircle className="h-5 w-5 mt-0.5 shrink-0 text-destructive" />
+              <div>
+                <p className="text-sm font-semibold text-destructive">Cannot withdraw yet</p>
+                <p className="mt-1 text-xs text-destructive/80">You must deposit and invest in a plan before withdrawing.</p>
+              </div>
+            </div>
+          )}
+
+          {!withinWindow && (
+            <div className="flex items-start gap-2.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+              <Clock className="h-5 w-5 mt-0.5 shrink-0 text-amber-600" />
+              <div>
+                <p className="text-sm font-semibold text-amber-600">Withdrawals are closed</p>
+                <p className="mt-1 text-xs text-amber-600/80">Withdrawals open daily from <span className="font-mono font-bold">09:00 - 17:00</span>. Next available: {nextOpenHour}</p>
+              </div>
+            </div>
+          )}
 
           {/* Fee summary */}
           {amount >= SITE.minWithdrawal && amount <= balance && (

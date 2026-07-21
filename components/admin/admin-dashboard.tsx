@@ -785,14 +785,27 @@ function Overview({ stats, controls, onAction, planSlots }: { stats: Stats; cont
           </button>
         </div>
       </div>
+      {/* Gradient Stat Cards */}
       <div className="grid grid-cols-2 gap-3">
-        {cards.map((c) => (
-          <div key={c.label} className="rounded-2xl border border-border bg-card p-4">
-            <c.icon className={`h-5 w-5 ${c.tint}`} />
-            <p className="mt-2 text-xl font-bold tabular-nums">{c.value}</p>
-            <p className="text-xs text-muted-foreground">{c.label}</p>
-          </div>
-        ))}
+        {cards.map((c, i) => {
+          const gradients = [
+            "bg-gradient-to-br from-teal-500 to-teal-600",
+            "bg-gradient-to-br from-green-500 to-green-600",
+            "bg-gradient-to-br from-amber-500 to-amber-600",
+            "bg-gradient-to-br from-sky-500 to-sky-600",
+            "bg-gradient-to-br from-emerald-500 to-emerald-600",
+            "bg-gradient-to-br from-rose-500 to-rose-600",
+          ]
+          const gradient = gradients[i % gradients.length]
+          return (
+            <div key={c.label} className={`relative overflow-hidden rounded-2xl ${gradient} p-4 text-white shadow-lg`}>
+              <div className="pointer-events-none absolute -right-4 -top-4 h-12 w-12 rounded-full bg-white/10 blur-xl" />
+              <c.icon className="relative h-5 w-5 opacity-90" />
+              <p className="relative mt-3 text-2xl font-black tabular-nums">{c.value}</p>
+              <p className="relative text-xs opacity-80">{c.label}</p>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
