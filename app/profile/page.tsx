@@ -20,7 +20,9 @@ export default async function ProfilePage() {
         email={data.email}
         phone={data.phone}
         role={data.role}
+        inviteCode={data.inviteCode}
         balance={data.balance}
+        frozenBalance={data.frozenBalance || 0}
         totalDeposited={data.totalDeposited}
         totalEarned={data.totalEarned}
         referralEarnings={data.referralEarnings}

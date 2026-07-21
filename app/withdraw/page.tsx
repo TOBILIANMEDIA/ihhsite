@@ -16,7 +16,7 @@ export default async function WithdrawPage() {
   return (
     <div className="min-h-screen pb-24">
       <AppHeader title="Withdraw" />
-      <WithdrawForm balance={data.balance} />
+      <WithdrawForm balance={data.balance} totalDeposited={data.totalDeposited} />
       <BottomNav />
     </div>
   )

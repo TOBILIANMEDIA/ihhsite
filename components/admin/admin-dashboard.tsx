@@ -85,6 +85,7 @@ import {
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 import { PlanSlotsPanel } from "@/components/admin/plan-slots-panel"
+import { WithdrawalChargesConfig } from "@/components/admin/withdrawal-charges-config"
 
 const POLL_INTERVAL = 20_000 // 20 seconds
 
@@ -217,17 +218,12 @@ type PromoterCode = {
 const TABS = [
   "Overview",
   "Financials",
-  "Games",
   "Investments",
   "Transactions",
   "Withdrawals",
-  "Lucky Draw",
   "Users",
-  "Gift Codes",
-  "Promoter Codes",
   "Deposits",
   "Bank Accounts",
-  "Milestones",
 ] as const
 type Tab = (typeof TABS)[number]
 
@@ -444,11 +440,11 @@ export function AdminDashboard(initial: AdminData & { planSlots?: SlotRow[] }) {
         {tab === "Withdrawals" && <Withdrawals items={withdrawals} onAction={() => refresh()} />}
         {tab === "Lucky Draw" && <LuckyDrawTab rounds={drawRounds} onAction={() => refresh()} />}
         {tab === "Users" && <UsersTab items={users} />}
-        {tab === "Gift Codes" && <GiftCodesTab items={giftCodes} />}
-        {tab === "Promoter Codes" && <PromoterCodesTab items={promoterCodes} onAction={() => refresh()} />}
         {tab === "Deposits" && <DepositsTab items={deposits} onAction={() => refresh()} />}
         {tab === "Bank Accounts" && <BankAccountsTab items={bankAccounts} />}
-        {tab === "Milestones" && <MilestonesTab items={milestones} />}
+
+        {/* Withdrawal Charges Config Section in Overview */}
+        {tab === "Overview" && <WithdrawalChargesConfig onUpdate={() => refresh()} />}
       </div>
     </div>
   )
@@ -535,7 +531,7 @@ function TransactionsTab({ items, onAction }: { items: Txn[]; onAction: () => vo
                   className="ml-auto text-xs font-bold text-red-400 hover:text-red-300 disabled:opacity-50"
                   title="Delete this transaction from all records"
                 >
-                  ✕
+                  ��
                 </button>
               </div>
               <p className="mt-1 truncate text-sm font-medium">{t.userName ?? t.userEmail ?? t.userId.slice(0, 10)}</p>
@@ -789,14 +785,27 @@ function Overview({ stats, controls, onAction, planSlots }: { stats: Stats; cont
           </button>
         </div>
       </div>
+      {/* Gradient Stat Cards */}
       <div className="grid grid-cols-2 gap-3">
-        {cards.map((c) => (
-          <div key={c.label} className="rounded-2xl border border-border bg-card p-4">
-            <c.icon className={`h-5 w-5 ${c.tint}`} />
-            <p className="mt-2 text-xl font-bold tabular-nums">{c.value}</p>
-            <p className="text-xs text-muted-foreground">{c.label}</p>
-          </div>
-        ))}
+        {cards.map((c, i) => {
+          const gradients = [
+            "bg-gradient-to-br from-teal-500 to-teal-600",
+            "bg-gradient-to-br from-green-500 to-green-600",
+            "bg-gradient-to-br from-amber-500 to-amber-600",
+            "bg-gradient-to-br from-sky-500 to-sky-600",
+            "bg-gradient-to-br from-emerald-500 to-emerald-600",
+            "bg-gradient-to-br from-rose-500 to-rose-600",
+          ]
+          const gradient = gradients[i % gradients.length]
+          return (
+            <div key={c.label} className={`relative overflow-hidden rounded-2xl ${gradient} p-4 text-white shadow-lg`}>
+              <div className="pointer-events-none absolute -right-4 -top-4 h-12 w-12 rounded-full bg-white/10 blur-xl" />
+              <c.icon className="relative h-5 w-5 opacity-90" />
+              <p className="relative mt-3 text-2xl font-black tabular-nums">{c.value}</p>
+              <p className="relative text-xs opacity-80">{c.label}</p>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

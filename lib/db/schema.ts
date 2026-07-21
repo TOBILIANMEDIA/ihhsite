@@ -314,3 +314,11 @@ export const promoterCode = pgTable("promoter_code", {
   commissionRate: integer("commissionRate"), // null = use SITE.promoterLevel1 default
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 })
+
+// System config — stores platform-wide settings like withdrawal charges
+export const systemConfig = pgTable("system_config", {
+  id: serial("id").primaryKey(),
+  key: text("key").notNull().unique(), // "withdrawalCharges", etc
+  value: text("value").notNull(), // JSON string for complex values
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+})
