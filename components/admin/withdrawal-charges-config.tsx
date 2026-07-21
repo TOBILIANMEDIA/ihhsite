@@ -2,7 +2,8 @@
 
 import { useState, useTransition, useEffect } from "react"
 import { toast } from "sonner"
-import { setWithdrawalCharges, getWithdrawalCharges, type WithdrawalCharges } from "@/app/actions/system-config"
+import { setWithdrawalCharges, getWithdrawalCharges } from "@/app/actions/system-config"
+import type { WithdrawalCharges } from "@/lib/withdrawal"
 import { Sliders } from "lucide-react"
 import { cn } from "@/lib/utils"
 

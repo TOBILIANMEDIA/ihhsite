@@ -5,11 +5,7 @@ import { systemConfig } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/lib/session"
-
-export type WithdrawalCharges = {
-  fixedFeeNaira: number
-  percentageFee: number
-}
+import type { WithdrawalCharges } from "@/lib/withdrawal"
 
 const DEFAULT_CHARGES: WithdrawalCharges = {
   fixedFeeNaira: 100,
@@ -71,12 +67,4 @@ export async function setWithdrawalCharges(charges: WithdrawalCharges) {
 
   revalidatePath("/admin")
   return { ok: true, message: "Withdrawal charges updated" }
-}
-
-/**
- * Calculate total withdrawal fee for a given amount
- */
-export function calculateWithdrawalFee(amount: number, charges: WithdrawalCharges): number {
-  const percentageFee = Math.round((amount * charges.percentageFee) / 100)
-  return charges.fixedFeeNaira + percentageFee
 }
