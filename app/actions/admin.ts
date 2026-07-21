@@ -940,7 +940,11 @@ export async function adminCancelInvestment(id: number) {
   if (refund > 0) {
     await db
       .update(wallet)
-      .set({ balance: sql`${wallet.balance} + ${refund}`, updatedAt: new Date() })
+      .set({
+        balance: sql`${wallet.balance} + ${refund}`,
+        totalEarned: sql`${wallet.totalEarned} + ${refund}`,
+        updatedAt: new Date(),
+      })
       .where(eq(wallet.userId, inv.userId))
 
     await db.insert(transaction).values({
