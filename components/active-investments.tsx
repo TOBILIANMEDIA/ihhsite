@@ -1,10 +1,8 @@
 "use client"
 
-import { useState, useEffect, useTransition, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import { formatNaira, PLAN_TIERS } from "@/lib/plans"
-import { Clock, Loader2, TrendingUp } from "lucide-react"
-import { toast } from "sonner"
-import { toggleAutoReinvest } from "@/app/actions/investments"
+import { Clock, TrendingUp } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 /**
@@ -59,7 +57,7 @@ function LiveTicker({ dailyEarning, lastPayoutAt }: { dailyEarning: number; last
 type Inv = {
   id: number; planName: string; dailyEarning: string; amountEarned: string
   totalEarning: string; daysPaid: number; durationDays: number; status: string
-  autoReinvest: boolean; lastPayoutAt: Date | string
+  lastPayoutAt: Date | string
 }
 
 function getTimeUntilNextPayout(lastPayoutAt: Date | string): string {
@@ -89,22 +87,11 @@ const PHASE_COLORS: Record<string, { bar: string; text: string; badge: string }>
 
 export function ActiveInvestments({ investments }: { investments: Inv[] }) {
   const [, setTick] = useState(0)
-  const [pending, startTransition] = useTransition()
-  const [togglingId, setTogglingId] = useState<number | null>(null)
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 60000)
     return () => clearInterval(id)
   }, [])
-
-  function handleToggle(invId: number) {
-    setTogglingId(invId)
-    startTransition(async () => {
-      const res = await toggleAutoReinvest(invId)
-      toast[res.ok ? "success" : "error"](res.message)
-      setTogglingId(null)
-    })
-  }
 
   if (investments.length === 0) return null
 
@@ -181,41 +168,16 @@ export function ActiveInvestments({ investments }: { investments: Inv[] }) {
                   />
                 )}
 
-                {/* Next payout + reinvest row */}
+                {/* Next payout pill */}
                 {inv.status === "active" && (
-                  <div className="mt-3 flex items-center justify-between gap-2">
-                    {/* Next payout pill */}
+                  <div className="mt-3">
                     <div className={cn(
-                      "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold",
-                      isReady
-                        ? "bg-success/15 text-success"
-                        : "bg-secondary text-muted-foreground",
+                      "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold",
+                      isReady ? "bg-success/15 text-success" : "bg-secondary text-muted-foreground",
                     )}>
                       <Clock className="h-3 w-3 shrink-0" />
                       {isReady ? "Payout ready" : `Next in ${timeUntil}`}
                     </div>
-
-                    {/* Auto-reinvest toggle */}
-                    <button
-                      onClick={() => handleToggle(inv.id)}
-                      disabled={pending && togglingId === inv.id}
-                      className={cn(
-                        "flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-all",
-                        inv.autoReinvest
-                          ? "bg-primary text-primary-foreground"
-                          : "border border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary",
-                      )}
-                    >
-                      {pending && togglingId === inv.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <div className={cn(
-                          "h-2 w-2 rounded-full transition-colors",
-                          inv.autoReinvest ? "bg-primary-foreground" : "bg-muted-foreground",
-                        )} />
-                      )}
-                      {inv.autoReinvest ? "Auto-reinvest on" : "Auto-reinvest off"}
-                    </button>
                   </div>
                 )}
               </div>
