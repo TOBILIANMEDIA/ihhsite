@@ -5,7 +5,7 @@ import { investment, wallet, transaction, profile, referral, planSlot } from "@/
 import { PLANS, SITE } from "@/lib/plans"
 import { getUserId } from "@/lib/session"
 import { accrueIncomeForUser } from "@/lib/income-engine"
-import { and, desc, eq, sql } from "drizzle-orm"
+import { and, count, desc, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
 export async function buyPlan(planId: number, opts?: { autoReinvest?: boolean }) {
@@ -60,23 +60,32 @@ export async function buyPlan(planId: number, opts?: { autoReinvest?: boolean })
     description: `Purchased ${plan.name}`,
   })
 
-  // 10% instant investment bonus credited back to balance
-  const investBonus = Math.round(plan.price * 0.10)
-  await db
-    .update(wallet)
-    .set({
-      balance: sql`${wallet.balance} + ${investBonus}`,
-      totalEarned: sql`${wallet.totalEarned} + ${investBonus}`,
-      updatedAt: new Date(),
-    })
-    .where(eq(wallet.userId, userId))
+  // 10% instant bonus — first investment only
+  // Count investments BEFORE this one (the INSERT above already added one row,
+  // so a count of 1 means this is the first investment)
+  const [{ value: invCount }] = await db
+    .select({ value: count() })
+    .from(investment)
+    .where(eq(investment.userId, userId))
 
-  await db.insert(transaction).values({
-    userId,
-    type: "bonus",
-    amount: String(investBonus),
-    description: `10% investment bonus on ${plan.name}`,
-  })
+  if (invCount === 1) {
+    const investBonus = Math.round(plan.price * 0.10)
+    await db
+      .update(wallet)
+      .set({
+        balance: sql`${wallet.balance} + ${investBonus}`,
+        totalEarned: sql`${wallet.totalEarned} + ${investBonus}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(wallet.userId, userId))
+
+    await db.insert(transaction).values({
+      userId,
+      type: "bonus",
+      amount: String(investBonus),
+      description: `10% first investment bonus on ${plan.name}`,
+    })
+  }
 
   // pay referral commissions on the purchase amount
   await payReferralCommission(userId, plan.price)
