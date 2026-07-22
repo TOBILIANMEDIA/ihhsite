@@ -168,7 +168,7 @@ export function ActiveInvestments({ investments }: { investments: Inv[] }) {
                   />
                 )}
 
-                {/* Next payout pill */}
+                {/* Next payout pill — suppressHydrationWarning prevents SSR/client time mismatch */}
                 {inv.status === "active" && (
                   <div className="mt-3">
                     <div className={cn(
@@ -176,7 +176,9 @@ export function ActiveInvestments({ investments }: { investments: Inv[] }) {
                       isReady ? "bg-success/15 text-success" : "bg-secondary text-muted-foreground",
                     )}>
                       <Clock className="h-3 w-3 shrink-0" />
-                      {isReady ? "Payout ready" : `Next in ${timeUntil}`}
+                      <span suppressHydrationWarning>
+                        {isReady ? "Payout ready" : `Next in ${timeUntil}`}
+                      </span>
                     </div>
                   </div>
                 )}
