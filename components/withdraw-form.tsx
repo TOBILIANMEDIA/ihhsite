@@ -9,6 +9,9 @@ import {
 import { toast } from "sonner"
 import { SITE, formatNaira } from "@/lib/plans"
 import { requestWithdrawal, getSavedBankDetails } from "@/app/actions/wallet"
+import { getWithdrawalCharges } from "@/app/actions/system-config"
+import type { WithdrawalCharges } from "@/lib/withdrawal"
+import { calculateWithdrawalFee } from "@/lib/withdrawal"
 import { cn } from "@/lib/utils"
 
 // ────────────────────────────────────────────────────────────
@@ -128,6 +131,7 @@ export function WithdrawForm({ balance, totalDeposited = 0 }: { balance: number;
   const [resolving, setResolving] = useState(false)
   const [resolveError, setResolveError] = useState("")
   const [hasSaved, setHasSaved] = useState(false)
+  const [charges, setCharges] = useState<WithdrawalCharges>({ fixedFeeNaira: 0, percentageFee: SITE.withdrawalCharge })
   const resolveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Time window validation — 9 AM to 5 PM only
@@ -146,10 +150,11 @@ export function WithdrawForm({ balance, totalDeposited = 0 }: { balance: number;
   const set = (k: keyof typeof form) => (v: string) =>
     setForm((f) => ({ ...f, [k]: v }))
 
-  // Load saved details on mount
+  // Load saved details and live charges on mount
   useEffect(() => {
     startTransition(async () => {
-      const saved = await getSavedBankDetails()
+      const [saved, liveCharges] = await Promise.all([getSavedBankDetails(), getWithdrawalCharges()])
+      if (liveCharges) setCharges(liveCharges)
       if (saved?.savedBankName) {
         const bank = NIGERIAN_BANKS.find((b) => b.name === saved.savedBankName)
         setForm({
@@ -202,8 +207,13 @@ export function WithdrawForm({ balance, totalDeposited = 0 }: { balance: number;
   }, [form.accountNumber, form.bankCode])
 
   const amount = Number(form.amount)
-  const charge = amount > 0 ? Math.round((amount * SITE.withdrawalCharge) / 100) : 0
+  const charge = amount > 0 ? calculateWithdrawalFee(amount, charges) : 0
   const net = amount - charge
+  const feeLabel = charges.fixedFeeNaira > 0 && charges.percentageFee > 0
+    ? `Fee (₦${charges.fixedFeeNaira} + ${charges.percentageFee}%)`
+    : charges.percentageFee > 0
+    ? `Fee (${charges.percentageFee}%)`
+    : `Fee (₦${charges.fixedFeeNaira})`
   const hasDeposited = totalDeposited > 0
   const canSubmit =
     !pending &&
@@ -292,7 +302,14 @@ export function WithdrawForm({ balance, totalDeposited = 0 }: { balance: number;
           <p className="text-xs leading-relaxed text-foreground/80">
             Available {SITE.withdrawalHours} · Processed within{" "}
             <span className="font-semibold">{SITE.withdrawalProcessingTime}</span>. A{" "}
-            <span className="font-semibold">{SITE.withdrawalCharge}% fee</span> applies. Min{" "}
+            <span className="font-semibold">
+              {charges.fixedFeeNaira > 0 && charges.percentageFee > 0
+                ? `₦${charges.fixedFeeNaira} + ${charges.percentageFee}% fee`
+                : charges.percentageFee > 0
+                ? `${charges.percentageFee}% fee`
+                : `₦${charges.fixedFeeNaira} fee`}
+            </span>{" "}
+            applies. Min{" "}
             <span className="font-semibold">{formatNaira(SITE.minWithdrawal)}</span>.
           </p>
         </div>
@@ -410,7 +427,7 @@ export function WithdrawForm({ balance, totalDeposited = 0 }: { balance: number;
               </div>
               {[
                 { label: "You withdraw",       value: formatNaira(amount),          dim: false },
-                { label: `Fee (${SITE.withdrawalCharge}%)`, value: `- ${formatNaira(charge)}`, dim: true  },
+                { label: feeLabel, value: `- ${formatNaira(charge)}`, dim: true  },
               ].map((row) => (
                 <div key={row.label} className="flex items-center justify-between border-b border-border/40 px-4 py-2.5 last:border-0">
                   <span className="text-xs text-muted-foreground">{row.label}</span>

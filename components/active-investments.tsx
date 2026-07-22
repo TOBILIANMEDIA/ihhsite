@@ -1,16 +1,63 @@
 "use client"
 
-import { useState, useEffect, useTransition } from "react"
+import { useState, useEffect, useRef } from "react"
 import { formatNaira, PLAN_TIERS } from "@/lib/plans"
-import { Clock, Loader2, RotateCcw } from "lucide-react"
-import { toast } from "sonner"
-import { toggleAutoReinvest } from "@/app/actions/investments"
+import { Clock, TrendingUp } from "lucide-react"
 import { cn } from "@/lib/utils"
+
+/**
+ * Live earning ticker — counts up naira earned since last payout.
+ * dailyEarning / 86400 = naira per second
+ */
+function LiveTicker({ dailyEarning, lastPayoutAt }: { dailyEarning: number; lastPayoutAt: Date | string }) {
+  const [earned, setEarned] = useState(0)
+  const rafRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    const perSecond = dailyEarning / 86400
+    const lastPayout = new Date(lastPayoutAt).getTime()
+
+    function tick() {
+      const elapsed = (Date.now() - lastPayout) / 1000
+      const pending = Math.min(elapsed * perSecond, dailyEarning)
+      setEarned(pending)
+      rafRef.current = requestAnimationFrame(tick)
+    }
+
+    rafRef.current = requestAnimationFrame(tick)
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
+  }, [dailyEarning, lastPayoutAt])
+
+  const pct = Math.min(100, (earned / dailyEarning) * 100)
+
+  return (
+    <div className="mt-3 overflow-hidden rounded-xl border border-success/25 bg-success/8 p-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <TrendingUp className="h-3.5 w-3.5 text-success" />
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-success/80">Accruing now</span>
+        </div>
+        <span className="text-xs font-bold tabular-nums text-success">
+          +{formatNaira(Math.floor(earned * 100) / 100)}
+        </span>
+      </div>
+      <div className="mt-2 h-1 overflow-hidden rounded-full bg-success/20">
+        <div
+          className="h-full rounded-full bg-success transition-none"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="mt-1.5 text-[10px] text-success/70">
+        Next payout: {formatNaira(dailyEarning)} — {pct.toFixed(1)}% complete
+      </p>
+    </div>
+  )
+}
 
 type Inv = {
   id: number; planName: string; dailyEarning: string; amountEarned: string
   totalEarning: string; daysPaid: number; durationDays: number; status: string
-  autoReinvest: boolean; lastPayoutAt: Date | string
+  lastPayoutAt: Date | string
 }
 
 function getTimeUntilNextPayout(lastPayoutAt: Date | string): string {
@@ -40,22 +87,11 @@ const PHASE_COLORS: Record<string, { bar: string; text: string; badge: string }>
 
 export function ActiveInvestments({ investments }: { investments: Inv[] }) {
   const [, setTick] = useState(0)
-  const [pending, startTransition] = useTransition()
-  const [togglingId, setTogglingId] = useState<number | null>(null)
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 60000)
     return () => clearInterval(id)
   }, [])
-
-  function handleToggle(invId: number) {
-    setTogglingId(invId)
-    startTransition(async () => {
-      const res = await toggleAutoReinvest(invId)
-      toast[res.ok ? "success" : "error"](res.message)
-      setTogglingId(null)
-    })
-  }
 
   if (investments.length === 0) return null
 
@@ -124,38 +160,26 @@ export function ActiveInvestments({ investments }: { investments: Inv[] }) {
                   </div>
                 </div>
 
-                {/* Next payout + reinvest row */}
+                {/* Live accrual ticker */}
                 {inv.status === "active" && (
-                  <div className="mt-3 flex items-center justify-between gap-3">
+                  <LiveTicker
+                    dailyEarning={Number(inv.dailyEarning)}
+                    lastPayoutAt={inv.lastPayoutAt}
+                  />
+                )}
+
+                {/* Next payout pill — suppressHydrationWarning prevents SSR/client time mismatch */}
+                {inv.status === "active" && (
+                  <div className="mt-3">
                     <div className={cn(
-                      "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold",
+                      "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold",
                       isReady ? "bg-success/15 text-success" : "bg-secondary text-muted-foreground",
                     )}>
-                      <Clock className="h-3 w-3" />
-                      {isReady ? "Payout ready" : `Next: ${timeUntil}`}
+                      <Clock className="h-3 w-3 shrink-0" />
+                      <span suppressHydrationWarning>
+                        {isReady ? "Payout ready" : `Next in ${timeUntil}`}
+                      </span>
                     </div>
-
-                    {/* Auto-reinvest toggle */}
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <span className="text-[10px] text-muted-foreground">Reinvest</span>
-                      <button
-                        onClick={() => handleToggle(inv.id)}
-                        disabled={pending && togglingId === inv.id}
-                        className={cn(
-                          "relative h-5 w-9 rounded-full transition-colors",
-                          inv.autoReinvest ? "bg-primary/50" : "bg-secondary",
-                        )}
-                      >
-                        {pending && togglingId === inv.id ? (
-                          <Loader2 className="absolute left-1.5 top-1 h-3 w-3 animate-spin text-foreground" />
-                        ) : (
-                          <div className={cn(
-                            "absolute top-0.5 h-4 w-4 rounded-full bg-primary transition-all",
-                            inv.autoReinvest ? "left-4" : "left-0.5",
-                          )} />
-                        )}
-                      </button>
-                    </label>
                   </div>
                 )}
               </div>
