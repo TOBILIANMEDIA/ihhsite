@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { cn } from "@/lib/utils"
 import {
   Users,
   Wallet,
@@ -1617,7 +1618,7 @@ function DepositCard({
             </button>
           </div>
         )}
-        {/* Check Sabuss button — shown for both pending AND completed deposits */}
+        {/* Check Sabuss button ��� shown for both pending AND completed deposits */}
         <button
           onClick={handleCheck}
           disabled={checking}
@@ -2993,7 +2994,7 @@ function InvestmentsTab({ items, onAction }: { items: InvestmentRow[]; onAction:
   )
 }
 
-// ── Lucky Draw Admin Tab ──────────────────────────────────────────────────────
+// ── Lucky Draw Admin Tab ─────────────────────────────────────────��────────────
 function LuckyDrawTab({ rounds, onAction }: { rounds: DrawRound[]; onAction: () => void }) {
   const [pending, startTransition] = useTransition()
   const [slotUsers, setSlotUsers] = useState<{ id: string; email: string; name: string | null }[]>([])
