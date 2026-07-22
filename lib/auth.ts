@@ -19,7 +19,7 @@ export const auth = betterAuth({
     "https://cil.incumb.fun",
     "https://incumb.fun",
     "https://www.incumb.fun",
-    // Legacy IHH domain (keep during migration)
+    // Legacy IHH subdomain — kept as a trusted origin during DNS migration period
     "https://ihh.incumb.fun",
     // v0 preview — V0_RUNTIME_URL is injected per-session
     ...(process.env.V0_RUNTIME_URL ? [process.env.V0_RUNTIME_URL] : []),

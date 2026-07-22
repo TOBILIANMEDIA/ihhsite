@@ -17,20 +17,43 @@ const spaceGrotesk = Space_Grotesk({
   weight: ['300', '400', '500', '600', '700'],
 })
 
+const SITE_URL = 'https://cil.incumb.fun'
+
 export const metadata: Metadata = {
   title: 'C.I.Limited — Construction Investment',
   description:
     'C.I.Limited (C.I.L) — Build your wealth through construction investment. Daily returns, transparent projects, real growth.',
-  generator: 'v0.app',
+  metadataBase: new URL(SITE_URL),
+  alternates: {
+    canonical: SITE_URL,
+  },
   openGraph: {
     title: 'C.I.Limited — Construction Investment',
     description: 'Build your wealth through construction investment with C.I.L.',
     siteName: 'C.I.Limited',
+    url: SITE_URL,
     type: 'website',
+    images: [
+      {
+        url: '/og.png',
+        width: 1200,
+        height: 630,
+        alt: 'C.I.Limited — Construction Investment',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'C.I.Limited — Construction Investment',
+    description: 'Build your wealth through construction investment with C.I.L.',
+    images: ['/og.png'],
   },
   icons: {
-    icon: '/favicon.png',
-    apple: '/logo.png',
+    icon: [
+      { url: '/favicon.png', type: 'image/png' },
+      { url: '/icon-dark-32x32.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: '/apple-icon.png',
   },
 }
 
