@@ -183,36 +183,39 @@ export function ActiveInvestments({ investments }: { investments: Inv[] }) {
 
                 {/* Next payout + reinvest row */}
                 {inv.status === "active" && (
-                  <div className="mt-3 flex items-center justify-between gap-3">
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    {/* Next payout pill */}
                     <div className={cn(
-                      "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold",
-                      isReady ? "bg-success/15 text-success" : "bg-secondary text-muted-foreground",
+                      "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold",
+                      isReady
+                        ? "bg-success/15 text-success"
+                        : "bg-secondary text-muted-foreground",
                     )}>
-                      <Clock className="h-3 w-3" />
-                      {isReady ? "Payout ready" : `Next: ${timeUntil}`}
+                      <Clock className="h-3 w-3 shrink-0" />
+                      {isReady ? "Payout ready" : `Next in ${timeUntil}`}
                     </div>
 
                     {/* Auto-reinvest toggle */}
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <span className="text-[10px] text-muted-foreground">Reinvest</span>
-                      <button
-                        onClick={() => handleToggle(inv.id)}
-                        disabled={pending && togglingId === inv.id}
-                        className={cn(
-                          "relative h-5 w-9 rounded-full transition-colors",
-                          inv.autoReinvest ? "bg-primary/50" : "bg-secondary",
-                        )}
-                      >
-                        {pending && togglingId === inv.id ? (
-                          <Loader2 className="absolute left-1.5 top-1 h-3 w-3 animate-spin text-foreground" />
-                        ) : (
-                          <div className={cn(
-                            "absolute top-0.5 h-4 w-4 rounded-full bg-primary transition-all",
-                            inv.autoReinvest ? "left-4" : "left-0.5",
-                          )} />
-                        )}
-                      </button>
-                    </label>
+                    <button
+                      onClick={() => handleToggle(inv.id)}
+                      disabled={pending && togglingId === inv.id}
+                      className={cn(
+                        "flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-all",
+                        inv.autoReinvest
+                          ? "bg-primary text-primary-foreground"
+                          : "border border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary",
+                      )}
+                    >
+                      {pending && togglingId === inv.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <div className={cn(
+                          "h-2 w-2 rounded-full transition-colors",
+                          inv.autoReinvest ? "bg-primary-foreground" : "bg-muted-foreground",
+                        )} />
+                      )}
+                      {inv.autoReinvest ? "Auto-reinvest on" : "Auto-reinvest off"}
+                    </button>
                   </div>
                 )}
               </div>
