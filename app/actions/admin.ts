@@ -1479,7 +1479,7 @@ export async function testSabussWebhook(accountId: number) {
   }
 
   try {
-    const res = await fetch("https://cil.incumb.fun/api/webhooks/sabuss", {
+    const res = await fetch("https://conltd.site/api/webhooks/sabuss", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

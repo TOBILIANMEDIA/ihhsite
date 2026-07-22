@@ -17,7 +17,7 @@ const spaceGrotesk = Space_Grotesk({
   weight: ['300', '400', '500', '600', '700'],
 })
 
-const SITE_URL = 'https://cil.incumb.fun'
+const SITE_URL = 'https://conltd.site'
 
 export const metadata: Metadata = {
   title: 'C.I.Limited — Construction Investment',

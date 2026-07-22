@@ -6,7 +6,7 @@ export const auth = betterAuth({
   baseURL:
     process.env.BETTER_AUTH_URL ??
     (process.env.NODE_ENV === "production"
-      ? "https://cil.incumb.fun"
+      ? "https://conltd.site"
       : process.env.VERCEL_URL
         ? `https://${process.env.VERCEL_URL}`
         : process.env.V0_RUNTIME_URL),
@@ -15,11 +15,11 @@ export const auth = betterAuth({
     autoSignIn: true,
   },
   trustedOrigins: [
-    // C.I.L production domains
+    // C.I.Limited production domains
+    "https://conltd.site",
+    "https://www.conltd.site",
+    // Legacy subdomains — kept during migration period
     "https://cil.incumb.fun",
-    "https://incumb.fun",
-    "https://www.incumb.fun",
-    // Legacy IHH subdomain — kept as a trusted origin during DNS migration period
     "https://ihh.incumb.fun",
     // v0 preview — V0_RUNTIME_URL is injected per-session
     ...(process.env.V0_RUNTIME_URL ? [process.env.V0_RUNTIME_URL] : []),
