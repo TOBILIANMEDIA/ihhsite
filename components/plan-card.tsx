@@ -205,16 +205,27 @@ export function PlanCard({ plan, slot }: { plan: Plan; slot?: SlotInfo }) {
             </div>
           </div>
         ) : (
-          <button
-            onClick={() => setConfirm(true)}
-            className={cn(
-              "group/btn relative flex w-full items-center justify-center overflow-hidden rounded-xl py-3 text-sm font-bold shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-[0.98]",
-              style.btnBg, style.btnText,
-            )}
-          >
-            <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-500 group-hover/btn:translate-x-full" />
-            Invest {formatNaira(plan.price)}
-          </button>
+          <div className="relative">
+            {/* Pulse ring — draws attention */}
+            <span className={cn(
+              "pointer-events-none absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity",
+              "animate-ping",
+              style.btnBg,
+            )} style={{ animationDuration: "1.5s" }} />
+            <button
+              onClick={() => setConfirm(true)}
+              className={cn(
+                "group/btn relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl py-3.5 text-sm font-bold shadow-md transition-all",
+                "hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.98]",
+                style.btnBg, style.btnText,
+              )}
+            >
+              {/* Shimmer sweep */}
+              <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover/btn:translate-x-full" />
+              <TrendingUp className="relative h-4 w-4" />
+              <span className="relative">Invest {formatNaira(plan.price)}</span>
+            </button>
+          </div>
         )}
       </div>
     </article>

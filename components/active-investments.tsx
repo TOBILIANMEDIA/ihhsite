@@ -1,11 +1,60 @@
 "use client"
 
-import { useState, useEffect, useTransition } from "react"
+import { useState, useEffect, useTransition, useRef } from "react"
 import { formatNaira, PLAN_TIERS } from "@/lib/plans"
-import { Clock, Loader2, RotateCcw } from "lucide-react"
+import { Clock, Loader2, TrendingUp } from "lucide-react"
 import { toast } from "sonner"
 import { toggleAutoReinvest } from "@/app/actions/investments"
 import { cn } from "@/lib/utils"
+
+/**
+ * Live earning ticker — counts up naira earned since last payout.
+ * dailyEarning / 86400 = naira per second
+ */
+function LiveTicker({ dailyEarning, lastPayoutAt }: { dailyEarning: number; lastPayoutAt: Date | string }) {
+  const [earned, setEarned] = useState(0)
+  const rafRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    const perSecond = dailyEarning / 86400
+    const lastPayout = new Date(lastPayoutAt).getTime()
+
+    function tick() {
+      const elapsed = (Date.now() - lastPayout) / 1000
+      const pending = Math.min(elapsed * perSecond, dailyEarning)
+      setEarned(pending)
+      rafRef.current = requestAnimationFrame(tick)
+    }
+
+    rafRef.current = requestAnimationFrame(tick)
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
+  }, [dailyEarning, lastPayoutAt])
+
+  const pct = Math.min(100, (earned / dailyEarning) * 100)
+
+  return (
+    <div className="mt-3 overflow-hidden rounded-xl border border-success/25 bg-success/8 p-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <TrendingUp className="h-3.5 w-3.5 text-success" />
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-success/80">Accruing now</span>
+        </div>
+        <span className="text-xs font-bold tabular-nums text-success">
+          +{formatNaira(Math.floor(earned * 100) / 100)}
+        </span>
+      </div>
+      <div className="mt-2 h-1 overflow-hidden rounded-full bg-success/20">
+        <div
+          className="h-full rounded-full bg-success transition-none"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="mt-1.5 text-[10px] text-success/70">
+        Next payout: {formatNaira(dailyEarning)} — {pct.toFixed(1)}% complete
+      </p>
+    </div>
+  )
+}
 
 type Inv = {
   id: number; planName: string; dailyEarning: string; amountEarned: string
@@ -123,6 +172,14 @@ export function ActiveInvestments({ investments }: { investments: Inv[] }) {
                     <span className="text-[10px] font-semibold text-muted-foreground">{pct}%</span>
                   </div>
                 </div>
+
+                {/* Live accrual ticker */}
+                {inv.status === "active" && (
+                  <LiveTicker
+                    dailyEarning={Number(inv.dailyEarning)}
+                    lastPayoutAt={inv.lastPayoutAt}
+                  />
+                )}
 
                 {/* Next payout + reinvest row */}
                 {inv.status === "active" && (
