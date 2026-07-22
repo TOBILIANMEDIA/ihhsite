@@ -1774,11 +1774,11 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
         </p>
         <div className="flex items-center gap-2 rounded-lg bg-background px-3 py-2">
           <span className="flex-1 select-all font-mono text-xs text-foreground">
-            https://ihh.incumb.fun/api/webhooks/sabuss
+            https://conltd.site/api/webhooks/sabuss
           </span>
           <button
             onClick={() => {
-              navigator.clipboard.writeText("https://ihh.incumb.fun/api/webhooks/sabuss")
+              navigator.clipboard.writeText("https://conltd.site/api/webhooks/sabuss")
               toast.success("Webhook URL copied")
             }}
             className="rounded-md bg-primary px-2 py-1 text-[10px] font-bold text-primary-foreground"
