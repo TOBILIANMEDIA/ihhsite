@@ -302,7 +302,14 @@ export function WithdrawForm({ balance, totalDeposited = 0 }: { balance: number;
           <p className="text-xs leading-relaxed text-foreground/80">
             Available {SITE.withdrawalHours} · Processed within{" "}
             <span className="font-semibold">{SITE.withdrawalProcessingTime}</span>. A{" "}
-            <span className="font-semibold">{SITE.withdrawalCharge}% fee</span> applies. Min{" "}
+            <span className="font-semibold">
+              {charges.fixedFeeNaira > 0 && charges.percentageFee > 0
+                ? `₦${charges.fixedFeeNaira} + ${charges.percentageFee}% fee`
+                : charges.percentageFee > 0
+                ? `${charges.percentageFee}% fee`
+                : `₦${charges.fixedFeeNaira} fee`}
+            </span>{" "}
+            applies. Min{" "}
             <span className="font-semibold">{formatNaira(SITE.minWithdrawal)}</span>.
           </p>
         </div>

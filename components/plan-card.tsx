@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { Loader2, CheckCircle2, Lock, TrendingUp, Clock } from "lucide-react"
+import { Loader2, Lock, TrendingUp, Clock } from "lucide-react"
 import { toast } from "sonner"
 import { type Plan, PLAN_TIERS, formatNaira } from "@/lib/plans"
 import { buyPlan } from "@/app/actions/investments"
@@ -52,7 +52,6 @@ const TIER_IMAGES: Record<string, string> = {
 export function PlanCard({ plan, slot }: { plan: Plan; slot?: SlotInfo }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
-  const [confirm, setConfirm] = useState(false)
 
   const tier = PLAN_TIERS[plan.id]
   const style = TIER_STYLES[tier?.phase ?? "Structure"]
@@ -72,7 +71,6 @@ export function PlanCard({ plan, slot }: { plan: Plan; slot?: SlotInfo }) {
       const res = await buyPlan(plan.id, {})
       if (res.ok) {
         toast.success(res.message)
-        setConfirm(false)
         router.refresh()
       } else {
         toast.error(res.message)
@@ -172,60 +170,32 @@ export function PlanCard({ plan, slot }: { plan: Plan; slot?: SlotInfo }) {
 
 
 
-        {/* Action buttons */}
+        {/* Action button — one click */}
         {isSoldOut ? (
-          <div className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/40 bg-secondary/40 py-2.5 text-sm font-semibold text-muted-foreground">
+          <div className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/40 bg-secondary/40 py-3 text-sm font-semibold text-muted-foreground">
             <Lock className="h-4 w-4" />
             Sold Out
           </div>
-        ) : confirm ? (
-          <div className="flex flex-col gap-2">
-            <p className="text-center text-xs text-muted-foreground">
-              Invest <span className="font-bold text-foreground">{formatNaira(plan.price)}</span> from your balance?
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setConfirm(false)}
-                disabled={pending}
-                className="flex flex-1 items-center justify-center rounded-xl border border-border/60 bg-secondary/60 py-2.5 text-sm font-semibold transition-all hover:bg-secondary active:scale-[0.98]"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleBuy}
-                disabled={pending}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold transition-all active:scale-[0.98] disabled:opacity-60",
-                  style.btnBg, style.btnText,
-                )}
-              >
-                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                Confirm
-              </button>
-            </div>
-          </div>
         ) : (
-          <div className="relative">
-            {/* Pulse ring — draws attention */}
-            <span className={cn(
-              "pointer-events-none absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity",
-              "animate-ping",
-              style.btnBg,
-            )} style={{ animationDuration: "1.5s" }} />
-            <button
-              onClick={() => setConfirm(true)}
-              className={cn(
-                "group/btn relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl py-3.5 text-sm font-bold shadow-md transition-all",
-                "hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.98]",
-                style.btnBg, style.btnText,
-              )}
-            >
-              {/* Shimmer sweep */}
-              <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover/btn:translate-x-full" />
-              <TrendingUp className="relative h-4 w-4" />
-              <span className="relative">Invest {formatNaira(plan.price)}</span>
-            </button>
-          </div>
+          <button
+            onClick={handleBuy}
+            disabled={pending}
+            className={cn(
+              "group/btn relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl py-3.5 text-sm font-bold shadow-md transition-all",
+              "hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.98] disabled:opacity-70 disabled:hover:translate-y-0",
+              style.btnBg, style.btnText,
+            )}
+          >
+            {/* Shimmer sweep on hover */}
+            <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover/btn:translate-x-full" />
+            {pending
+              ? <Loader2 className="relative h-4 w-4 animate-spin" />
+              : <TrendingUp className="relative h-4 w-4" />
+            }
+            <span className="relative">
+              {pending ? "Processing…" : `Invest ${formatNaira(plan.price)}`}
+            </span>
+          </button>
         )}
       </div>
     </article>
