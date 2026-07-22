@@ -48,13 +48,7 @@ export const metadata: Metadata = {
     description: 'Build your wealth through construction investment with C.I.L.',
     images: ['/og.png'],
   },
-  icons: {
-    icon: [
-      { url: '/favicon.png', type: 'image/png' },
-      { url: '/icon-dark-32x32.png', sizes: '32x32', type: 'image/png' },
-    ],
-    apple: '/apple-icon.png',
-  },
+  // app/icon.png and app/apple-icon.png are auto-served by Next.js file convention
 }
 
 export const viewport: Viewport = {
