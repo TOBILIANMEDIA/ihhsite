@@ -87,6 +87,7 @@ import {
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 import { PlanSlotsPanel } from "@/components/admin/plan-slots-panel"
 import { WithdrawalChargesConfig } from "@/components/admin/withdrawal-charges-config"
+import { TelegramConfig } from "@/components/admin/telegram-config"
 
 const POLL_INTERVAL = 20_000 // 20 seconds
 
@@ -468,8 +469,9 @@ export function AdminDashboard(initial: AdminData & { planSlots?: SlotRow[] }) {
           {tab === "Overview" && (
             <>
               <Overview stats={stats} controls={controls} onAction={() => refresh()} planSlots={initialPlanSlots ?? []} />
-              <div className="mt-4">
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
                 <WithdrawalChargesConfig onUpdate={() => refresh()} />
+                <TelegramConfig onUpdate={() => refresh()} />
               </div>
             </>
           )}
@@ -2994,7 +2996,7 @@ function InvestmentsTab({ items, onAction }: { items: InvestmentRow[]; onAction:
   )
 }
 
-// ── Lucky Draw Admin Tab ─────────────────────────────────────────��────────────
+// ── Lucky Draw Admin Tab ────────────────────────���────────────────��────────────
 function LuckyDrawTab({ rounds, onAction }: { rounds: DrawRound[]; onAction: () => void }) {
   const [pending, startTransition] = useTransition()
   const [slotUsers, setSlotUsers] = useState<{ id: string; email: string; name: string | null }[]>([])
