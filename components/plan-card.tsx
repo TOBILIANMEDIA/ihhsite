@@ -2,8 +2,7 @@
 
 import { useTransition } from "react"
 import { useRouter } from "next/navigation"
-import Image from "next/image"
-import { Loader2, Lock, TrendingUp, Clock } from "lucide-react"
+import { Loader2, Lock, TrendingUp, Clock, Zap, ArrowUpRight } from "lucide-react"
 import { toast } from "sonner"
 import { type Plan, PLAN_TIERS, formatNaira } from "@/lib/plans"
 import { buyPlan } from "@/app/actions/investments"
@@ -16,37 +15,62 @@ export type SlotInfo = {
   isActive: boolean
 }
 
-const TIER_STYLES: Record<string, {
-  bar: string; badge: string; text: string; accent: string
-  glow: string; btnBg: string; btnText: string
+// Per-tier gradient and color config
+const TIER_CONFIG: Record<string, {
+  gradient: string
+  headerText: string
+  accentBg: string
+  accentText: string
+  badge: string
+  btn: string
+  btnText: string
+  ring: string
+  dot: string
 }> = {
   Foundation: {
-    bar: "bg-stone-400", badge: "bg-stone-400/15 text-stone-500", text: "text-stone-500",
-    accent: "border-stone-400/25", glow: "hover:shadow-stone-300/20",
-    btnBg: "bg-stone-500", btnText: "text-white",
+    gradient:   "from-slate-700 via-slate-800 to-slate-900",
+    headerText: "text-slate-100",
+    accentBg:   "bg-slate-600/40",
+    accentText: "text-slate-200",
+    badge:      "bg-slate-500/30 text-slate-300 border-slate-500/30",
+    btn:        "bg-slate-100 hover:bg-white",
+    btnText:    "text-slate-900",
+    ring:       "ring-slate-500/30",
+    dot:        "bg-slate-400",
   },
   Structure: {
-    bar: "bg-primary", badge: "bg-primary/15 text-primary", text: "text-primary",
-    accent: "border-primary/30", glow: "hover:shadow-primary/20",
-    btnBg: "bg-primary", btnText: "text-primary-foreground",
+    gradient:   "from-teal-600 via-teal-700 to-emerald-800",
+    headerText: "text-white",
+    accentBg:   "bg-white/15",
+    accentText: "text-teal-100",
+    badge:      "bg-white/20 text-white border-white/20",
+    btn:        "bg-white hover:bg-teal-50",
+    btnText:    "text-teal-800",
+    ring:       "ring-teal-400/40",
+    dot:        "bg-teal-300",
   },
   Framework: {
-    bar: "bg-sky-500", badge: "bg-sky-400/15 text-sky-600", text: "text-sky-600",
-    accent: "border-sky-400/25", glow: "hover:shadow-sky-400/20",
-    btnBg: "bg-sky-500", btnText: "text-white",
+    gradient:   "from-sky-500 via-blue-600 to-blue-700",
+    headerText: "text-white",
+    accentBg:   "bg-white/15",
+    accentText: "text-sky-100",
+    badge:      "bg-white/20 text-white border-white/20",
+    btn:        "bg-white hover:bg-sky-50",
+    btnText:    "text-sky-800",
+    ring:       "ring-sky-400/40",
+    dot:        "bg-sky-300",
   },
   Skyline: {
-    bar: "bg-amber-500", badge: "bg-amber-400/15 text-amber-600", text: "text-amber-600",
-    accent: "border-amber-400/25", glow: "hover:shadow-amber-400/20",
-    btnBg: "bg-amber-500", btnText: "text-white",
+    gradient:   "from-amber-500 via-orange-500 to-rose-600",
+    headerText: "text-white",
+    accentBg:   "bg-white/15",
+    accentText: "text-amber-100",
+    badge:      "bg-white/20 text-white border-white/20",
+    btn:        "bg-white hover:bg-amber-50",
+    btnText:    "text-amber-800",
+    ring:       "ring-amber-400/40",
+    dot:        "bg-amber-300",
   },
-}
-
-const TIER_IMAGES: Record<string, string> = {
-  Foundation: "/plans/foundation.png",
-  Structure:  "/plans/structure.png",
-  Framework:  "/plans/framework.png",
-  Skyline:    "/plans/skyline.png",
 }
 
 export function PlanCard({ plan, slot }: { plan: Plan; slot?: SlotInfo }) {
@@ -54,17 +78,19 @@ export function PlanCard({ plan, slot }: { plan: Plan; slot?: SlotInfo }) {
   const [pending, startTransition] = useTransition()
 
   const tier = PLAN_TIERS[plan.id]
-  const style = TIER_STYLES[tier?.phase ?? "Structure"]
-  const image = TIER_IMAGES[tier?.phase ?? "Structure"]
+  const cfg = TIER_CONFIG[tier?.phase ?? "Structure"]
 
   // Slot states
   const isSoldOut = slot
     ? (!slot.isActive || (slot.totalSlots !== null && slot.soldSlots >= slot.totalSlots))
     : false
-  const hasLimit = slot?.totalSlots != null
-  const remaining = hasLimit ? Math.max(0, (slot!.totalSlots ?? 0) - slot!.soldSlots) : null
-  const totalSlots = slot?.totalSlots ?? null
-  const fillPct = hasLimit && totalSlots ? Math.min(100, Math.round((slot!.soldSlots / totalSlots) * 100)) : 0
+  const hasLimit    = slot?.totalSlots != null
+  const remaining   = hasLimit ? Math.max(0, (slot!.totalSlots ?? 0) - slot!.soldSlots) : null
+  const totalSlots  = slot?.totalSlots ?? null
+  const fillPct     = hasLimit && totalSlots ? Math.min(100, Math.round((slot!.soldSlots / totalSlots) * 100)) : 0
+
+  // ROI percentage
+  const roiPct = Math.round(((plan.total - plan.price) / plan.price) * 100)
 
   function handleBuy() {
     startTransition(async () => {
@@ -82,95 +108,106 @@ export function PlanCard({ plan, slot }: { plan: Plan; slot?: SlotInfo }) {
   return (
     <article
       className={cn(
-        "group relative overflow-hidden rounded-2xl border bg-card transition-all duration-300",
-        isSoldOut ? "border-border/40 opacity-80" : [
-          "border-border/60",
-          style.accent,
-          style.glow,
-          "hover:-translate-y-0.5 hover:shadow-lg",
-        ],
-        plan.popular && !isSoldOut && "border-primary/40",
+        "group relative flex flex-col overflow-hidden rounded-2xl ring-1 transition-all duration-300",
+        isSoldOut ? "opacity-70 ring-border/40" : [cfg.ring, "hover:-translate-y-1 hover:shadow-xl"],
       )}
     >
-      {/* Top colour bar */}
-      <div className={cn("h-1 w-full", style.bar)} />
-
-      {/* Hero image */}
-      <div className="relative h-32 w-full overflow-hidden">
-        <Image
-          src={image}
-          alt={`${tier?.phase ?? ""} tier`}
-          fill
-          className={cn("object-cover transition-transform duration-500", !isSoldOut && "group-hover:scale-105")}
-          sizes="(max-width: 768px) 100vw, 448px"
+      {/* ---- Gradient header ---- */}
+      <div className={cn("relative bg-gradient-to-br p-5", cfg.gradient)}>
+        {/* Decorative dot grid */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
+            backgroundSize: "18px 18px",
+          }}
         />
-        {/* Dark gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
 
-        {/* SOLD OUT overlay */}
-        {isSoldOut && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-[2px]">
-            <div className="flex items-center gap-2 rounded-full border border-border/60 bg-card/90 px-4 py-2 shadow-lg">
-              <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Sold Out</span>
-            </div>
-          </div>
-        )}
-
-        {/* Slot circle badge — top-right of image */}
-        {hasLimit && !isSoldOut && (
-          <div className={cn(
-            "absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-full shadow-lg ring-2 ring-white/20",
-            style.btnBg,
-          )}>
-            <span className={cn("text-sm font-extrabold tabular-nums leading-none", style.btnText)}>
-              {remaining}
+        {/* Top row: tier badge + popular + slots */}
+        <div className="relative flex items-start justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className={cn("h-2 w-2 rounded-full", cfg.dot)} />
+            <span className={cn("text-[10px] font-bold uppercase tracking-widest opacity-80", cfg.headerText)}>
+              {tier?.phase}
             </span>
           </div>
-        )}
-
-        {/* Overlay badges */}
-        <div className="absolute bottom-2.5 left-3 right-3 flex items-end justify-between">
-          <div>
-            <p className={cn("text-[9px] font-bold uppercase tracking-widest", style.text)}>
-              {tier?.phase}
-            </p>
-            <h3 className="text-sm font-bold leading-tight text-foreground drop-shadow-sm">{plan.name}</h3>
-          </div>
-          <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-1.5">
             {plan.popular && !isSoldOut && (
-              <span className="rounded-full bg-primary px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary-foreground shadow">
-                Popular
+              <span className="flex items-center gap-0.5 rounded-full bg-white/25 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                <Zap className="h-2.5 w-2.5" /> Popular
               </span>
             )}
-            <span className={cn("rounded-lg px-2 py-0.5 text-[10px] font-bold shadow", style.badge)}>
+            {hasLimit && !isSoldOut && remaining !== null && (
+              <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-bold", cfg.badge)}>
+                {remaining} left
+              </span>
+            )}
+            <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-bold", cfg.badge)}>
               {tier?.label}
             </span>
           </div>
         </div>
+
+        {/* Plan name + price */}
+        <div className="relative mt-4">
+          <h3 className={cn("text-base font-black leading-tight tracking-tight", cfg.headerText)}>
+            {plan.name}
+          </h3>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className={cn("text-3xl font-black tabular-nums", cfg.headerText)}>
+              {formatNaira(plan.price)}
+            </span>
+            <span className={cn("text-xs font-semibold opacity-70", cfg.headerText)}>capital</span>
+          </div>
+        </div>
+
+        {/* ROI pill */}
+        <div className="relative mt-3">
+          <span className={cn(
+            "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold",
+            cfg.accentBg, cfg.accentText,
+          )}>
+            <ArrowUpRight className="h-3.5 w-3.5" />
+            {roiPct}% total ROI over {plan.durationDays} days
+          </span>
+        </div>
+
+        {/* Slot fill bar */}
+        {hasLimit && !isSoldOut && totalSlots && (
+          <div className="relative mt-3">
+            <div className="h-1 w-full overflow-hidden rounded-full bg-white/20">
+              <div
+                className="h-full rounded-full bg-white/70 transition-all"
+                style={{ width: `${fillPct}%` }}
+              />
+            </div>
+            <p className={cn("mt-1 text-[10px] opacity-70", cfg.headerText)}>
+              {slot!.soldSlots}/{totalSlots} slots filled
+            </p>
+          </div>
+        )}
+
+        {/* Sold out overlay */}
+        {isSoldOut && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-[2px]">
+            <div className="flex items-center gap-2 rounded-full border border-white/20 bg-black/60 px-4 py-2">
+              <Lock className="h-3.5 w-3.5 text-white/70" />
+              <span className="text-xs font-bold uppercase tracking-widest text-white/70">Sold Out</span>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Card body */}
-      <div className="p-4">
-        {/* Stats row */}
-        <div className="mb-3 grid grid-cols-3 divide-x divide-border/40 overflow-hidden rounded-xl border border-border/40 bg-secondary/40">
-          <Stat label="Capital"   value={formatNaira(plan.price)}        icon={<span className="text-[10px]">₦</span>}           tint={style.text} />
-          <Stat label="Daily"     value={formatNaira(plan.daily)}         icon={<TrendingUp className="h-3 w-3" />}                tint={style.text} />
-          <Stat label="Duration"  value={`${plan.durationDays}d`}         icon={<Clock className="h-3 w-3" />}                    tint={style.text} />
+      {/* ---- Stats body ---- */}
+      <div className="flex flex-1 flex-col gap-3 bg-card p-4">
+        {/* Daily + Duration + Total row */}
+        <div className="grid grid-cols-3 gap-2">
+          <StatPill label="Daily" value={formatNaira(plan.daily)} />
+          <StatPill label="Duration" value={`${plan.durationDays}d`} />
+          <StatPill label="Total" value={formatNaira(plan.total)} highlight />
         </div>
 
-        {/* Total return highlight */}
-        <div className={cn(
-          "mb-3 flex items-center justify-between rounded-xl px-3.5 py-2.5",
-          "border border-border/40 bg-secondary/30",
-        )}>
-          <span className="text-xs text-muted-foreground">Total return over {plan.durationDays} days</span>
-          <span className={cn("text-sm font-bold tabular-nums", style.text)}>{formatNaira(plan.total)}</span>
-        </div>
-
-
-
-        {/* Action button — one click */}
+        {/* Action button */}
         {isSoldOut ? (
           <div className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/40 bg-secondary/40 py-3 text-sm font-semibold text-muted-foreground">
             <Lock className="h-4 w-4" />
@@ -181,13 +218,12 @@ export function PlanCard({ plan, slot }: { plan: Plan; slot?: SlotInfo }) {
             onClick={handleBuy}
             disabled={pending}
             className={cn(
-              "group/btn relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl py-3.5 text-sm font-bold shadow-md transition-all",
-              "hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.98] disabled:opacity-70 disabled:hover:translate-y-0",
-              style.btnBg, style.btnText,
+              "group/btn relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl py-3.5 text-sm font-bold shadow transition-all",
+              "hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] disabled:opacity-70",
+              cfg.btn, cfg.btnText,
             )}
           >
-            {/* Shimmer sweep on hover */}
-            <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover/btn:translate-x-full" />
+            <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-black/5 to-transparent transition-transform duration-700 group-hover/btn:translate-x-full" />
             {pending
               ? <Loader2 className="relative h-4 w-4 animate-spin" />
               : <TrendingUp className="relative h-4 w-4" />
@@ -202,13 +238,19 @@ export function PlanCard({ plan, slot }: { plan: Plan; slot?: SlotInfo }) {
   )
 }
 
-
-function Stat({ label, value, icon, tint }: { label: string; value: string; icon: React.ReactNode; tint: string }) {
+function StatPill({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className="flex flex-col items-center gap-0.5 px-2 py-2.5">
-      <span className={cn("flex items-center gap-0.5", tint)}>{icon}</span>
-      <p className="text-[9px] uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="text-xs font-bold tabular-nums">{value}</p>
+    <div className={cn(
+      "flex flex-col items-center rounded-xl px-2 py-2.5 text-center",
+      highlight ? "bg-primary/10 border border-primary/20" : "bg-secondary/50",
+    )}>
+      <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={cn(
+        "mt-0.5 text-xs font-black tabular-nums",
+        highlight ? "text-primary" : "text-foreground",
+      )}>
+        {value}
+      </p>
     </div>
   )
 }
