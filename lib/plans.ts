@@ -47,7 +47,7 @@ export const SITE = {
   tagline: 'Construction Investment Limited',
   signInBonus: 100,
   welcomeBonus: 600,
-  investmentBonusPercent: 10,
+  investmentBonusPercent: 1,
   minWithdrawal: 1000,
   minDeposit: 3000,
   withdrawalCharge: 18,
