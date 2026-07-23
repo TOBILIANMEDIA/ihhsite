@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useTransition } from 'react'
+import { Suspense, useState, useTransition, useEffect } from 'react'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { ArrowLeft, ShieldCheck, Wallet, Loader2, Copy, Check, User, Clock, AlertTriangle, RotateCcw } from 'lucide-react'
@@ -9,6 +9,7 @@ import { AppHeader } from '@/components/app-header'
 import { BottomNav } from '@/components/bottom-nav'
 import { PLANS, SITE, formatNaira } from '@/lib/plans'
 import { startDeposit, updateDepositSenderName, markDepositAsPaid } from '@/app/actions/deposit'
+import { getWithdrawalCharges } from '@/app/actions/system-config'
 import { cn } from '@/lib/utils'
 
 const QUICK_AMOUNTS = [3000, 5000, 10000, 15000, 20000, 30000, 50000, 100000, 200000]
@@ -35,10 +36,18 @@ function TopupContent() {
   const [senderName, setSenderName] = useState('')
   const [savingSenderName, setSavingSenderName] = useState(false)
   const [markingPaid, setMarkingPaid] = useState(false)
+  const [liveMinDeposit, setLiveMinDeposit] = useState(SITE.minDeposit)
+
+  // Load live minDeposit from admin config on mount
+  useEffect(() => {
+    getWithdrawalCharges().then((c) => {
+      if (c.minDeposit) setLiveMinDeposit(c.minDeposit)
+    })
+  }, [])
 
   const customValue = Number(custom)
   const amount = custom ? customValue : selected ?? 0
-  const valid = amount >= SITE.minDeposit
+  const valid = amount >= liveMinDeposit
   const [pending, startTransition] = useTransition()
 
   function handleProceed() {
@@ -317,7 +326,7 @@ function TopupContent() {
         <div>
           <h1 className="text-xl font-bold tracking-tight">Topup / Recharge</h1>
           <p className="text-xs text-muted-foreground">
-            Minimum deposit {formatNaira(SITE.minDeposit)}
+            Minimum deposit {formatNaira(liveMinDeposit)}
           </p>
         </div>
       </div>
@@ -386,7 +395,7 @@ function TopupContent() {
         </div>
         {!valid && amount > 0 && (
           <p className="mt-2 text-xs text-destructive">
-            Amount must be at least {formatNaira(SITE.minDeposit)}.
+            Amount must be at least {formatNaira(liveMinDeposit)}.
           </p>
         )}
       </div>

@@ -5,6 +5,8 @@ import { wallet, withdrawal, transaction, giftCode, giftCodeRedemption, profile 
 import { SITE } from "@/lib/plans"
 import { getUserId } from "@/lib/session"
 import { getBoolSetting, SETTING_KEYS } from "@/app/actions/settings"
+import { getWithdrawalCharges } from "@/app/actions/system-config"
+import { calculateWithdrawalFee } from "@/lib/withdrawal"
 import { and, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
@@ -22,8 +24,12 @@ export async function requestWithdrawal(data: {
     return { ok: false, message: "Network error. Please try again later." }
   }
 
-  if (!amount || amount < SITE.minWithdrawal) {
-    return { ok: false, message: `Minimum withdrawal is ₦${SITE.minWithdrawal.toLocaleString()}` }
+  // Load live limits & fee config from DB
+  const liveConfig = await getWithdrawalCharges()
+  const minWithdrawal = liveConfig.minWithdrawal ?? SITE.minWithdrawal
+
+  if (!amount || amount < minWithdrawal) {
+    return { ok: false, message: `Minimum withdrawal is ₦${minWithdrawal.toLocaleString()}` }
   }
   if (!data.bankName || !data.accountNumber || !data.accountName) {
     return { ok: false, message: "Please fill in your bank details" }
@@ -35,7 +41,7 @@ export async function requestWithdrawal(data: {
     return { ok: false, message: "Insufficient balance" }
   }
 
-  const charge = Math.round((amount * SITE.withdrawalCharge) / 100)
+  const charge = calculateWithdrawalFee(amount, liveConfig)
   const net = amount - charge
 
   // hold the funds immediately
