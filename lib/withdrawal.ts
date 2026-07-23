@@ -1,6 +1,9 @@
 export type WithdrawalCharges = {
   fixedFeeNaira: number
   percentageFee: number
+  minWithdrawal?: number
+  minDeposit?: number
+  minInvestment?: number
 }
 
 /**
