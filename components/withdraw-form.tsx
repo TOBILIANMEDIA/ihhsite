@@ -220,7 +220,7 @@ export function WithdrawForm({ balance, totalDeposited = 0 }: { balance: number;
     form.bankName &&
     form.accountNumber.length === 10 &&
     form.accountName &&
-    amount >= SITE.minWithdrawal &&
+    amount >= (charges.minWithdrawal ?? SITE.minWithdrawal) &&
     amount <= balance &&
     hasDeposited &&
     withinWindow
@@ -310,7 +310,7 @@ export function WithdrawForm({ balance, totalDeposited = 0 }: { balance: number;
                 : `₦${charges.fixedFeeNaira} fee`}
             </span>{" "}
             applies. Min{" "}
-            <span className="font-semibold">{formatNaira(SITE.minWithdrawal)}</span>.
+            <span className="font-semibold">{formatNaira(charges.minWithdrawal ?? SITE.minWithdrawal)}</span>.
           </p>
         </div>
 
@@ -329,7 +329,7 @@ export function WithdrawForm({ balance, totalDeposited = 0 }: { balance: number;
               <input
                 type="number"
                 inputMode="numeric"
-                placeholder={`Min. ${formatNaira(SITE.minWithdrawal)}`}
+                placeholder={`Min. ${formatNaira(charges.minWithdrawal ?? SITE.minWithdrawal)}`}
                 value={form.amount}
                 onChange={(e) => set("amount")(e.target.value)}
                 className="flex-1 bg-transparent py-3.5 text-sm outline-none placeholder:text-muted-foreground/60"
@@ -420,7 +420,7 @@ export function WithdrawForm({ balance, totalDeposited = 0 }: { balance: number;
           )}
 
           {/* Fee summary */}
-          {amount >= SITE.minWithdrawal && amount <= balance && (
+          {amount >= (charges.minWithdrawal ?? SITE.minWithdrawal) && amount <= balance && (
             <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
               <div className="border-b border-border/40 px-4 py-3">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Summary</p>
