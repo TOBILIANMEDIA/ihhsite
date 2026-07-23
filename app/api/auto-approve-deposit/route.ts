@@ -36,6 +36,8 @@ export async function POST(req: Request) {
       return new Response(JSON.stringify({ ok: false, error: "Deposit not found" }), { status: 404 })
     }
 
+    console.log("[v0] Found deposit:", { reference, userId: dep.userId, amount: dep.amount, status: dep.status })
+
     // Only auto-approve if still in processing state
     if (dep.status !== "processing") {
       console.log("[v0] Deposit already processed or not in processing state:", dep.status)
@@ -49,9 +51,18 @@ export async function POST(req: Request) {
 
     // Update deposit to success
     await db.update(deposit).set({ status: "success" }).where(eq(deposit.reference, reference))
+    console.log("[v0] Updated deposit status to success")
+
+    // Check if wallet exists
+    const [w] = await db.select().from(wallet).where(eq(wallet.userId, dep.userId))
+    if (!w) {
+      console.error("[v0] Wallet not found for userId:", dep.userId)
+      return new Response(JSON.stringify({ ok: false, error: "Wallet not found" }), { status: 404 })
+    }
+    console.log("[v0] Found wallet, current balance:", w.balance)
 
     // Credit wallet
-    await db
+    const result = await db
       .update(wallet)
       .set({
         balance: sql`${wallet.balance} + ${amount}`,
@@ -59,6 +70,8 @@ export async function POST(req: Request) {
         updatedAt: new Date(),
       })
       .where(eq(wallet.userId, dep.userId))
+    
+    console.log("[v0] Updated wallet, result:", result)
 
     // Create transaction record
     await db.insert(transaction).values({

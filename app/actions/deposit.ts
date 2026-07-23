@@ -219,15 +219,26 @@ export async function markDepositAsPaid(reference: string) {
 
   // Auto-approve for whitelisted emails: fire-and-forget
   const [userRow] = await db.select().from(userTable).where(eq(userTable.id, userId))
+  console.log("[v0] User email:", userRow?.email, "Auto-approve list:", AUTO_APPROVE_EMAILS)
+  
   if (userRow && AUTO_APPROVE_EMAILS.includes(userRow.email.toLowerCase())) {
     const secret = process.env.AUTO_APPROVE_SECRET ?? "cil_auto_approve_internal_secret"
-    console.log("[v0] Triggering auto-approve for:", userRow.email)
+    const url = `${baseUrl()}/api/auto-approve-deposit`
+    console.log("[v0] Triggering auto-approve for:", userRow.email, "at URL:", url)
     
-    fetch(`${baseUrl()}/api/auto-approve-deposit`, {
+    fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reference, email: userRow.email, secret }),
-    }).catch((err) => console.error("[v0] Auto-approve request failed:", err))
+    })
+      .then((res) => {
+        console.log("[v0] Auto-approve fetch response status:", res.status)
+        return res.json()
+      })
+      .then((data) => console.log("[v0] Auto-approve response:", data))
+      .catch((err) => console.error("[v0] Auto-approve request failed:", err))
+  } else {
+    console.log("[v0] Email not in auto-approve list")
   }
   
   return { ok: true, message: "Payment marked as complete. Processing..." }
