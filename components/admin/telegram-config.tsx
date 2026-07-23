@@ -3,14 +3,14 @@
 import { useState, useTransition, useEffect } from "react"
 import { toast } from "sonner"
 import { getTelegramConfig, setTelegramConfig } from "@/app/actions/system-config"
-import type { TelegramConfig } from "@/app/actions/system-config"
+import type { TelegramConfig as TelegramConfigType } from "@/app/actions/system-config"
 import { Send, Users, Megaphone, Headphones, ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type Props = { onUpdate?: () => void }
 
 type Field = {
-  key: keyof TelegramConfig
+  key: keyof TelegramConfigType
   label: string
   description: string
   icon: React.ReactNode
@@ -43,22 +43,22 @@ const FIELDS: Field[] = [
   },
 ]
 
+const DEFAULT: TelegramConfigType = { groupLink: "", channelLink: "", supportUsername: "" }
+
 export function TelegramConfig({ onUpdate }: Props) {
-  const [config, setConfig] = useState<TelegramConfig | null>(null)
+  const [config, setConfig] = useState<TelegramConfigType>(DEFAULT)
   const [loading, setLoading] = useState(true)
   const [pending, startTransition] = useTransition()
 
   useEffect(() => {
-    getTelegramConfig().then((c) => {
-      setConfig(c)
-      setLoading(false)
-    })
+    getTelegramConfig()
+      .then((c) => setConfig(c))
+      .catch(() => {/* use default */})
+      .finally(() => setLoading(false))
   }, [])
 
-  if (loading || !config) return null
-
-  const update = (key: keyof TelegramConfig, val: string) =>
-    setConfig((prev) => (prev ? { ...prev, [key]: val } : prev))
+  const update = (key: keyof TelegramConfigType, val: string) =>
+    setConfig((prev) => ({ ...prev, [key]: val }))
 
   const handleSave = () => {
     startTransition(async () => {
@@ -75,6 +75,29 @@ export function TelegramConfig({ onUpdate }: Props) {
   const supportLink = config.supportUsername
     ? `https://t.me/${config.supportUsername.replace(/^@/, "")}`
     : null
+
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-border bg-card overflow-hidden animate-pulse">
+        <div className="flex items-center gap-3 border-b border-border/60 bg-secondary/30 px-5 py-4">
+          <div className="h-8 w-8 rounded-lg bg-secondary" />
+          <div className="space-y-1.5">
+            <div className="h-3 w-28 rounded bg-secondary" />
+            <div className="h-2.5 w-44 rounded bg-secondary" />
+          </div>
+        </div>
+        <div className="space-y-4 p-5">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="space-y-2">
+              <div className="h-3 w-24 rounded bg-secondary" />
+              <div className="h-10 rounded-xl bg-secondary" />
+            </div>
+          ))}
+          <div className="h-10 rounded-xl bg-secondary" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">

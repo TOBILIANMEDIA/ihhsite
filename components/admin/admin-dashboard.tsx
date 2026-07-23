@@ -469,7 +469,7 @@ export function AdminDashboard(initial: AdminData & { planSlots?: SlotRow[] }) {
           {tab === "Overview" && (
             <>
               <Overview stats={stats} controls={controls} onAction={() => refresh()} planSlots={initialPlanSlots ?? []} />
-              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <WithdrawalChargesConfig onUpdate={() => refresh()} />
                 <TelegramConfig onUpdate={() => refresh()} />
               </div>
