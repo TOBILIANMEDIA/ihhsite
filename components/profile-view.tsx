@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
   ArrowDownToLine, ArrowUpFromLine, Gift, Users, Wallet,
@@ -9,6 +9,8 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { SITE, formatNaira } from "@/lib/plans"
+import { getTelegramConfig } from "@/app/actions/system-config"
+import type { TelegramConfig } from "@/app/actions/system-config"
 import { authClient } from "@/lib/auth-client"
 import { Logo } from "@/components/logo"
 import { cn } from "@/lib/utils"
@@ -22,8 +24,15 @@ export function ProfileView(props: Props) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [copied, setCopied] = useState(false)
+  const [tg, setTg] = useState<TelegramConfig | null>(null)
+
+  useEffect(() => { getTelegramConfig().then(setTg) }, [])
 
   const initials = props.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase() || "CI"
+
+  const supportLink = tg?.supportUsername
+    ? `https://t.me/${tg.supportUsername.replace(/^@/, "")}`
+    : tg?.groupLink ?? SITE.telegramGroup
 
   const menuGroups = [
     {
@@ -40,7 +49,7 @@ export function ProfileView(props: Props) {
       items: [
         { label: "My Team",   icon: Users,      href: "/team",            tint: "text-sky-400",   bg: "bg-sky-400/10"  },
         { label: "Gift Code", icon: Gift,        href: "/gift-code",      tint: "text-primary",   bg: "bg-primary/10"  },
-        { label: "Support",   icon: Headphones,  href: SITE.telegramGroup, tint: "text-muted-foreground", bg: "bg-secondary" },
+        { label: "Support",   icon: Headphones,  href: supportLink,        tint: "text-muted-foreground", bg: "bg-secondary" },
       ],
     },
     ...(props.role === "admin"

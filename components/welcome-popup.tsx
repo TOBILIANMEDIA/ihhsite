@@ -4,9 +4,12 @@ import { useState, useEffect } from 'react'
 import { X, Send, MessageCircle, ArrowRight, Layers, TrendingUp, Wallet } from 'lucide-react'
 import { SITE, formatNaira } from '@/lib/plans'
 import { Logo } from '@/components/logo'
+import { getTelegramConfig } from '@/app/actions/system-config'
+import type { TelegramConfig } from '@/app/actions/system-config'
 
 export function WelcomePopup() {
   const [show, setShow] = useState(false)
+  const [tg, setTg] = useState<TelegramConfig | null>(null)
 
   useEffect(() => {
     const hasSeenWelcome = localStorage.getItem('cil_welcome_seen')
@@ -14,6 +17,7 @@ export function WelcomePopup() {
       setShow(true)
       localStorage.setItem('cil_welcome_seen', 'true')
     }
+    getTelegramConfig().then(setTg)
   }, [])
 
   if (!show) return null
@@ -97,7 +101,7 @@ export function WelcomePopup() {
 
           <div className="flex gap-2">
             <a
-              href={SITE.telegramChannel}
+              href={tg?.channelLink ?? SITE.telegramChannel}
               target="_blank"
               rel="noreferrer"
               className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-secondary/50 py-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
@@ -105,7 +109,7 @@ export function WelcomePopup() {
               <Send className="h-3.5 w-3.5 text-[#0088cc]" /> Channel
             </a>
             <a
-              href={`https://t.me/${SITE.telegramSupport}`}
+              href={tg?.supportUsername ? `https://t.me/${tg.supportUsername.replace(/^@/, "")}` : `https://t.me/${SITE.telegramSupport}`}
               target="_blank"
               rel="noreferrer"
               className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-secondary/50 py-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary"

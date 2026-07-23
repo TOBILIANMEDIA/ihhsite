@@ -1,8 +1,11 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { Gift, CalendarDays, Users, Clock, Send, X } from 'lucide-react'
 import { Logo } from '@/components/logo'
 import { SITE, formatNaira } from '@/lib/plans'
+import { getTelegramConfig } from '@/app/actions/system-config'
+import type { TelegramConfig } from '@/app/actions/system-config'
 
 const items = [
   {
@@ -36,7 +39,16 @@ const items = [
 ]
 
 export function InfoModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [tg, setTg] = useState<TelegramConfig | null>(null)
+
+  useEffect(() => {
+    if (open && !tg) getTelegramConfig().then(setTg)
+  }, [open])
+
   if (!open) return null
+
+  const groupLink = tg?.groupLink ?? SITE.telegramGroup
+  const channelLink = tg?.channelLink ?? SITE.telegramChannel
 
   return (
     <div className="fixed inset-0 z-[999] flex items-end justify-center overflow-hidden sm:items-center">
@@ -81,7 +93,7 @@ export function InfoModal({ open, onClose }: { open: boolean; onClose: () => voi
 
         <div className="mt-6 flex flex-col gap-3">
           <a
-            href={SITE.telegramGroup}
+            href={groupLink}
             target="_blank"
             rel="noreferrer"
             className="flex items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 font-semibold text-primary-foreground transition-opacity hover:opacity-90"
@@ -89,7 +101,7 @@ export function InfoModal({ open, onClose }: { open: boolean; onClose: () => voi
             <Send className="h-4 w-4" /> Join Telegram Group
           </a>
           <a
-            href={SITE.telegramChannel}
+            href={channelLink}
             target="_blank"
             rel="noreferrer"
             className="flex items-center justify-center gap-2 rounded-2xl bg-secondary py-3.5 font-semibold text-secondary-foreground transition-colors hover:bg-accent"

@@ -82,3 +82,67 @@ export async function setWithdrawalCharges(charges: WithdrawalCharges) {
     return { ok: false, message: "Failed to update withdrawal charges" }
   }
 }
+
+// ─── Telegram Config ───────────────────────────────────────────────────────
+
+export type TelegramConfig = {
+  groupLink: string
+  channelLink: string
+  supportUsername: string
+}
+
+const DEFAULT_TELEGRAM: TelegramConfig = {
+  groupLink: "https://t.me/cilsupport",
+  channelLink: "https://t.me/cilimited",
+  supportUsername: "cilsupport",
+}
+
+export async function getTelegramConfig(): Promise<TelegramConfig> {
+  try {
+    const config = await db
+      .select()
+      .from(systemConfig)
+      .where(eq(systemConfig.key, "telegramConfig"))
+      .limit(1)
+
+    if (config.length === 0) return DEFAULT_TELEGRAM
+    try {
+      return JSON.parse(config[0].value) as TelegramConfig
+    } catch {
+      return DEFAULT_TELEGRAM
+    }
+  } catch (err) {
+    console.error("[v0] Failed to fetch telegram config, using defaults:", err)
+    return DEFAULT_TELEGRAM
+  }
+}
+
+export async function setTelegramConfig(config: TelegramConfig) {
+  try {
+    await requireAdmin()
+
+    const existing = await db
+      .select()
+      .from(systemConfig)
+      .where(eq(systemConfig.key, "telegramConfig"))
+      .limit(1)
+
+    if (existing.length > 0) {
+      await db
+        .update(systemConfig)
+        .set({ value: JSON.stringify(config), updatedAt: new Date() })
+        .where(eq(systemConfig.key, "telegramConfig"))
+    } else {
+      await db.insert(systemConfig).values({
+        key: "telegramConfig",
+        value: JSON.stringify(config),
+      })
+    }
+
+    revalidatePath("/admin")
+    return { ok: true, message: "Telegram links updated" }
+  } catch (err) {
+    console.error("[v0] Failed to set telegram config:", err)
+    return { ok: false, message: "Failed to update Telegram links" }
+  }
+}
